@@ -1,0 +1,26 @@
+{
+  "name": "bottom-bot",
+  "module": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "start": "bunx prisma migrate deploy && bun run src/index.ts",
+    "dev": "bun --watch src/index.ts"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@prisma/client": "5.20.0",
+    "discord.js": "^14.16.3",
+    "prisma": "^5.20.0"
+  },
+  "imports": {
+    "@/*": "./src/*",
+    "@commands/*": "./src/commands/*",
+    "@events/*": "./src/events/*",
+    "@db/*": "./src/database/*"
+  }
+}
