@@ -173,3 +173,11 @@ dist
 
 # Finder (MacOS) folder config
 .DS_Store
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal
+prisma/*.sqlite
+
+# Postgres
+postgres_data

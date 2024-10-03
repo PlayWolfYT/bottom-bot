@@ -4,24 +4,35 @@ import { readdirSync } from "fs";
 import { isCommand, type Command } from "@commands/Command";
 import { env } from "bun";
 import { validateEnvVariables } from "@/env-variables";
+import { type RESTPostAPIChatInputApplicationCommandsJSONBody } from "discord.js";
 
 validateEnvVariables();
 
-const commands = [];
-const commandFiles = readdirSync("@commands").filter(
-  (file) => file.endsWith(".ts") || file.endsWith(".js")
+const commands: RESTPostAPIChatInputApplicationCommandsJSONBody[] = [];
+
+// Updated command loading logic
+const commandFiles = readdirSync("./src/commands", {
+  recursive: true,
+}).filter(
+  (file) =>
+    ((file as string).endsWith(".ts") || (file as string).endsWith(".js")) &&
+    file !== "Command.ts"
 );
 
 for (const file of commandFiles) {
-  const command: Command = require(`@commands/${file}`).default;
+  const command: Command | any = require(`./commands/${file}`).default;
+
   if (!isCommand(command)) {
     console.error(`Command ${file} is not a valid command.`);
     continue;
   } else if (command.executeSlash) {
-    commands.push({
-      name: command.name,
-      description: command.description,
-    });
+    commands.push(
+      command.slashCommandData?.toJSON() ?? {
+        name: command.name,
+        description: command.description,
+      }
+    );
+    console.log(`Slash command '${command.name}' loaded successfully.`);
   } else {
     console.debug(
       `Command ${file} does not have a slash command implementation.`

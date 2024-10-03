@@ -48,4 +48,5 @@ tests
 
 # Prisma
 prisma/*.db
+prisma/*.db-journal
 prisma/*.sqlite

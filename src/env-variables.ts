@@ -1,6 +1,7 @@
 import type { Collection } from "discord.js";
 import type { Command } from "@commands/Command";
 import { env } from "bun";
+import type { Event } from "@/events/Event";
 
 // Extend the Bun environment to include the bot token, prefix and client ID
 declare module "bun" {
@@ -15,6 +16,7 @@ declare module "bun" {
 declare module "discord.js" {
   interface Client {
     commands: Collection<string, Command>;
+    events: Collection<string, Event[]>;
   }
 }
 
