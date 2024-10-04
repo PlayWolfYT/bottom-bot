@@ -1,9 +1,12 @@
 import { prisma } from "@/database";
 import type { Event } from "@/events/Event";
 import * as chrono from "chrono-node";
+import { Events } from "discord.js";
+import Logger from "@/logger";
+const logger = new Logger();
 
 export default {
-  event: "messageCreate",
+  event: Events.MessageCreate,
   async execute(_client, message) {
     if (message.author.bot) return;
 
@@ -55,7 +58,7 @@ export default {
           )}:R>`
         );
       } catch (error) {
-        console.error("Error creating reminder:", error);
+        logger.error(`Error creating reminder: ${error}`);
         message.reply(
           "Sorry, there was an error setting your reminder. Please try again later."
         );

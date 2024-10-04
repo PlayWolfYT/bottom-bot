@@ -3,6 +3,7 @@ import {
   Message,
   CommandInteraction,
   SlashCommandBuilder,
+  ChatInputCommandInteraction,
 } from "discord.js";
 
 export interface Command {
@@ -15,7 +16,7 @@ export interface Command {
   ) => Promise<void>;
   executeSlash?: (
     client: Client,
-    interaction: CommandInteraction
+    interaction: ChatInputCommandInteraction
   ) => Promise<void>;
   slashCommandData?: SlashCommandBuilder;
 }

@@ -1,7 +1,11 @@
 import type { Event } from "@/events/Event";
+import Logger from "@/logger";
+import { Events } from "discord.js";
+
+const logger = new Logger();
 
 export default {
-  event: "messageCreate",
+  event: Events.MessageCreate,
   execute(client, message) {
     if (message.author.bot) return;
 
@@ -21,7 +25,7 @@ export default {
     // Calculate a 7% chance, if we don't hit it, we return
     const roll = Math.random();
     if (roll > 0.07) {
-      console.debug(
+      logger.debug(
         `Dadjoke event missed for ${message.author.displayName} (rolled ${roll})`
       );
       return;

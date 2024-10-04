@@ -2,6 +2,7 @@ import type { Client } from "discord.js";
 
 export interface Interval {
   interval: number;
+  executeOnInit: boolean;
   execute: (client: Client, ...args: any[]) => Promise<void>;
 }
 

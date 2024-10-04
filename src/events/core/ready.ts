@@ -1,12 +1,13 @@
-import { Client } from "discord.js";
+import { Client, Events } from "discord.js";
 import type { Event } from "@events/Event";
+import Logger from "@/logger";
 
-const readyEvent: Event = {
-  event: "ready",
+const logger = new Logger();
+
+export default {
+  event: Events.ClientReady,
   once: true,
   execute(client: Client) {
-    console.log(`Logged in as ${client.user?.tag}`);
+    logger.info(`Logged in as ${client.user?.tag}`);
   },
-};
-
-export default readyEvent;
+} as Event;

@@ -1,52 +1,60 @@
 import { prisma } from "@/database";
 import type { Interval } from "@/intervals/Interval";
+import Logger from "@/logger";
+import type { Client } from "discord.js";
+
+const logger = new Logger();
+
+const REMINDER_CHECK_INTERVAL = 1000 * 60 * 60; // 1 hour
 
 export default {
-  interval: 1000 * 10,
-  execute: async (client) => {
-    // Fetch reminders from database
-    // Check if any reminders are due
-    // Execute reminder
-    // Remove past reminders
-    console.log("Checking for reminders...");
+  interval: REMINDER_CHECK_INTERVAL,
+  executeOnInit: true,
+  execute: async (client: Client) => {
+    logger.debug("Checking for reminders...");
     const now = new Date();
+    const nextCycle = new Date(now.getTime() + REMINDER_CHECK_INTERVAL); // 1 hour from now
+
     const reminders = await prisma.reminder.findMany({
       where: {
         time: {
-          lte: now,
+          gte: now,
+          lt: nextCycle,
         },
       },
     });
 
     for (const reminder of reminders) {
-      const guild = await client.guilds.fetch(reminder.guildId);
-      const channel = await guild.channels.fetch(reminder.channelId);
+      const timeUntilReminder = reminder.time.getTime() - now.getTime();
 
-      if (channel && channel.isTextBased()) {
-        try {
+      setTimeout(async () => {
+        const guild = await client.guilds.fetch(reminder.guildId);
+        const channel = await guild.channels.fetch(reminder.channelId);
+
+        if (channel && channel.isTextBased()) {
           try {
-            const message = await channel.messages.fetch(reminder.messageId);
-            await message.reply(
-              `<@${reminder.userId}>, here's your reminder: ${reminder.reminderText}`
-            );
+            try {
+              const message = await channel.messages.fetch(reminder.messageId);
+              await message.reply(
+                `<@${reminder.userId}>, here's your reminder: ${reminder.reminderText}`
+              );
+            } catch (error) {
+              await channel.send(
+                `<@${reminder.userId}>, here's your reminder: ${reminder.reminderText} (Failed to reply to original message)`
+              );
+            }
           } catch (error) {
-            await channel.send(
-              `<@${reminder.userId}>, here's your reminder: ${reminder.reminderText} (Failed to reply to original message)`
-            );
+            logger.error(`Failed to send reminder ${reminder.id}: ${error}`);
           }
-        } catch (error) {
-          console.error(`Failed to send reminder ${reminder.id}:`, error);
         }
-      }
-    }
 
-    // Remove executed reminders
-    await prisma.reminder.deleteMany({
-      where: {
-        time: {
-          lte: now,
-        },
-      },
-    });
+        // Remove executed reminder
+        await prisma.reminder.delete({
+          where: {
+            id: reminder.id,
+          },
+        });
+      }, timeUntilReminder);
+    }
   },
 } as Interval;

@@ -21,10 +21,11 @@ model Permission {
 }
 
 model CustomCommand {
-  id       String @id @default(cuid())
+  id       String  @id @default(cuid())
   guildId  String
   name     String
   response String
+  embed    Boolean @default(false)
 
   @@unique([guildId, name])
 }

@@ -1,9 +1,11 @@
 import type { Client, Interaction } from "discord.js";
 import type { Event } from "@events/Event";
-import { ChannelType } from "discord.js";
+import { ChannelType, Events } from "discord.js";
+import Logger from "@/logger";
+const logger = new Logger();
 
-const interactionCreateEvent: Event = {
-  event: "interactionCreate",
+export default {
+  event: Events.InteractionCreate,
   async execute(client: Client, interaction: Interaction) {
     if (!interaction.isCommand()) return;
 
@@ -23,16 +25,16 @@ const interactionCreateEvent: Event = {
 
     if (!command || !command.executeSlash) return;
 
+    if (!interaction.isChatInputCommand()) return;
+
     try {
       await command.executeSlash(client, interaction);
     } catch (error) {
-      console.error(error);
+      logger.error(`Error executing interaction-based command: ${error}`);
       await interaction.reply({
         content: "There was an error executing that command.",
         ephemeral: true,
       });
     }
   },
-};
-
-export default interactionCreateEvent;
+} as Event;
