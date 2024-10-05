@@ -10,11 +10,11 @@ COPY bun.lockb package.json tsconfig.json ./
 # Install dependencies, including Prisma CLI
 RUN bun install
 
-# Copy source code and Prisma schema
-COPY . .
-
 # Install OpenSSL
 RUN apt-get update -y && apt-get install -y openssl
+
+# Copy source code and Prisma schema
+COPY . .
 
 # Generate Prisma client
 RUN bunx prisma generate
