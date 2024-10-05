@@ -82,8 +82,8 @@ async function parseAdvancedResponse(response: string, context: ParseContext): P
     // Now process instructions step by step
     let loopCount = 0; // To prevent infinite loops
     const maxLoops = 1000;
-    const instructionRegex = /{(set|webrequest|eval|if|choose|random|followup|require|not):(.*?)}|{if:.*?}[\s\S]*?{endif}/;
-
+    const instructionRegex = /{(set|webrequest|eval|if|choose|random|followup|require|not);(.*?)}|{if;.*?}[\s\S]*?{endif}/;
+    let instruction = '';
     while (loopCount < maxLoops) {
         loopCount++;
         const match = parsedResponse.match(instructionRegex);
@@ -91,34 +91,34 @@ async function parseAdvancedResponse(response: string, context: ParseContext): P
             break;
         }
 
-        const instruction = match[0];
+        instruction = match[0];
         const startIndex = match.index || 0;
         const endIndex = startIndex + instruction.length;
 
         let replacement = '';
 
-        if (instruction.startsWith('{set:')) {
+        if (instruction.startsWith('{set;')) {
             // Variable assignment
             replacement = await processVariableAssignment(instruction, context);
-        } else if (instruction.startsWith('{webrequest:')) {
+        } else if (instruction.startsWith('{webrequest;')) {
             // Web request
             replacement = await processWebRequestInstruction(instruction, context);
-        } else if (instruction.startsWith('{eval:')) {
+        } else if (instruction.startsWith('{eval;')) {
             // Eval
             replacement = await processEvalInstruction(instruction, context);
-        } else if (instruction.startsWith('{if:')) {
+        } else if (instruction.startsWith('{if;')) {
             // Conditional
             replacement = await processConditionalInstruction(instruction, context);
-        } else if (instruction.startsWith('{choose:')) {
+        } else if (instruction.startsWith('{choose;')) {
             // Choose
             replacement = processChooseInstruction(instruction, context);
-        } else if (instruction.startsWith('{random:')) {
+        } else if (instruction.startsWith('{random;')) {
             // Random
             replacement = processRandomInstruction(instruction, context);
-        } else if (instruction.startsWith('{followup:')) {
+        } else if (instruction.startsWith('{followup;')) {
             // Follow-up
             replacement = processFollowUpInstruction(instruction, context);
-        } else if (instruction.startsWith('{require:') || instruction.startsWith('{not:')) {
+        } else if (instruction.startsWith('{require;') || instruction.startsWith('{not;')) {
             // Permission checks
             const canExecute = await checkPermissions(parsedResponse, context);
             if (!canExecute) return null;
@@ -138,6 +138,12 @@ async function parseAdvancedResponse(response: string, context: ParseContext): P
     }
 
     if (loopCount >= maxLoops) {
+        logger.error('Maximum loop count exceeded in parseAdvancedResponse');
+        logger.error(`Response: ${response}`);
+        logger.error(`Parsed response: ${parsedResponse}`);
+        logger.error(`Followup: ${context.followUps}`);
+        logger.error(`Variables: ${JSON.stringify(context.variables, null, 2)}`);
+        logger.error(`Was stuck on ${instruction}`);
         throw new Error('Maximum loop count exceeded in parseAdvancedResponse');
     }
 
@@ -152,8 +158,8 @@ async function parseAdvancedResponse(response: string, context: ParseContext): P
 
 
 async function processVariableAssignment(instruction: string, context: ParseContext): Promise<string> {
-    // Instruction format: {set:varName=value}
-    const setRegex = /{set:(\w+)=(.*?)}/;
+    // Instruction format: {set;varName=value}
+    const setRegex = /{set;(\w+)=(.*?)}/;
     const match = instruction.match(setRegex);
     if (!match) return instruction; // Shouldn't happen
 
@@ -163,12 +169,12 @@ async function processVariableAssignment(instruction: string, context: ParseCont
     // Process value for possible nested placeholders
     value = await parseNestedPlaceholders(value, context);
     context.variables[varName] = value;
-    return ''; // Remove the {set:...} from the response
+    return ''; // Remove the {set;...} from the response
 }
 
 function parseVariableUsages(response: string, context: ParseContext): string {
     // Variable usage with support for nested properties
-    const varRegex = /{var:([\w.]+)}/g;
+    const varRegex = /{var;([\w.]+)}/g;
     response = response.replace(varRegex, (_, varPath) => {
         const parts = varPath.split('.');
         let value = context.variables;
@@ -200,7 +206,7 @@ async function parseNestedPlaceholders(value: string, context: ParseContext): Pr
     value = parseArguments(value, context);
 
     // Process random numbers
-    value = value.replace(/{random:(\d+)-(\d+)}/g, (_, min, max) => {
+    value = value.replace(/{random;(\d+)-(\d+)}/g, (_, min, max) => {
         const num = Math.floor(Math.random() * (parseInt(max) - parseInt(min) + 1)) + parseInt(min);
         return num.toString();
     });
@@ -237,7 +243,7 @@ function parseBasicReplacements(response: string, context: ParseContext): string
         .replace(/{args\[(\d+)\]}/g, (_, index) => context.args[parseInt(index)] || '')
 
         // Random number generation
-        .replace(/{random:(\d+)-(\d+)}/g, (_, min, max) => {
+        .replace(/{random;(\d+)-(\d+)}/g, (_, min, max) => {
             const num = Math.floor(Math.random() * (parseInt(max) - parseInt(min) + 1)) + parseInt(min);
             return num.toString();
         })
@@ -256,8 +262,8 @@ function formatUptime(uptime: number): string {
 }
 
 function processRandomInstruction(instruction: string, context: ParseContext): string {
-    // Instruction format: {random:min-max}
-    const randomRegex = /{random:(\d+)-(\d+)}/;
+    // Instruction format: {random;min-max}
+    const randomRegex = /{random;(\d+)-(\d+)}/;
     const match = instruction.match(randomRegex);
     if (!match) return instruction;
 
@@ -268,8 +274,8 @@ function processRandomInstruction(instruction: string, context: ParseContext): s
 }
 
 async function processConditionalInstruction(instruction: string, context: ParseContext): Promise<string> {
-    // Instruction format: {if:condition}...{else}...{endif}
-    const ifRegex = /{if:(.*?)}([\s\S]*?)(?:{else}([\s\S]*?))?{endif}/;
+    // Instruction format: {if;condition}...{else}...{endif}
+    const ifRegex = /{if;(.*?)}([\s\S]*?)(?:{else}([\s\S]*?))?{endif}/;
     const match = instruction.match(ifRegex);
     if (!match) return instruction;
 
@@ -282,8 +288,8 @@ async function processConditionalInstruction(instruction: string, context: Parse
 }
 
 function processChooseInstruction(instruction: string, context: ParseContext): string {
-    // Instruction format: {choose:option1;option2;...}
-    const chooseRegex = /{choose:(.*?)}/;
+    // Instruction format: {choose;option1;option2;...}
+    const chooseRegex = /{choose;(.*?)}/;
     const match = instruction.match(chooseRegex);
     if (!match) return instruction;
 
@@ -294,8 +300,8 @@ function processChooseInstruction(instruction: string, context: ParseContext): s
 
 async function checkPermissions(response: string, context: ParseContext): Promise<boolean> {
     const { message } = context;
-    const requireRegex = /{require:(.*?)}/g;
-    const notRegex = /{not:(.*?)}/g;
+    const requireRegex = /{require;(.*?)}/g;
+    const notRegex = /{not;(.*?)}/g;
 
     const requirements = [...response.matchAll(requireRegex)].map(match => match[1]);
     const exclusions = [...response.matchAll(notRegex)].map(match => match[1]);
@@ -451,8 +457,8 @@ async function safeEval(condition: string, context: ParseContext): Promise<boole
 }
 
 function processFollowUpInstruction(instruction: string, context: ParseContext): string {
-    // Instruction format: {followup:message}
-    const followUpRegex = /{followup:(.*?)}/;
+    // Instruction format: {followup;message}
+    const followUpRegex = /{followup;(.*?)}/;
     const match = instruction.match(followUpRegex);
     if (!match) return instruction;
 
@@ -465,12 +471,12 @@ function processFollowUpInstruction(instruction: string, context: ParseContext):
     context.followUps = context.followUps || [];
     context.followUps.push(followUpContent);
 
-    return ''; // Remove the {followup:...} from the response
+    return ''; // Remove the {followup;...} from the response
 }
 
 async function processWebRequestInstruction(instruction: string, context: ParseContext): Promise<string> {
-    // Instruction format: {webrequest:varName:url}
-    const webRequestRegex = /{webrequest:(\w+):([^}]+)}/;
+    // Instruction format: {webrequest;varName;url}
+    const webRequestRegex = /{webrequest;(\w+);([^}]+)}/;
     const match = instruction.match(webRequestRegex);
     if (!match) return instruction;
 
@@ -497,7 +503,7 @@ async function processWebRequestInstruction(instruction: string, context: ParseC
 
         const data = await result.json();
         context.variables[variableName] = data;
-        return ''; // Remove the {webrequest:...} from the response
+        return ''; // Remove the {webrequest;...} from the response
     } catch (error: any) {
         console.error(`Error making web request: ${error}`);
         return `Error: ${error.message ?? error.toString()}`;
@@ -505,8 +511,8 @@ async function processWebRequestInstruction(instruction: string, context: ParseC
 }
 
 async function processEvalInstruction(instruction: string, context: ParseContext): Promise<string> {
-    // Instruction format: {eval:code}
-    const evalRegex = /{eval:(.*?)}/;
+    // Instruction format: {eval;code}
+    const evalRegex = /{eval;(.*?)}/;
     const match = instruction.match(evalRegex);
     if (!match) return instruction;
 
