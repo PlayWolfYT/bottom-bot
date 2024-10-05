@@ -4,7 +4,8 @@ import Logger from "@/logger";
 import type { ReplyFunction } from "@/types";
 import { ActionRowBuilder, EmbedBuilder, ModalBuilder, SlashCommandBuilder, TextInputBuilder, TextInputStyle, type InteractionReplyOptions, type MessageReplyOptions } from "discord.js";
 import { PagedEmbed } from "@/utils/PagedEmbed";
-import type { CustomCommand } from "@prisma/client";
+import type { CustomCommand, GuildSettings } from "@prisma/client";
+import { env } from "bun";
 
 const logger = new Logger();
 
@@ -52,15 +53,15 @@ async function generateHelpReply(
 export default {
   name: "custom",
   description: "Custom commands",
-  async executeMessage(_client, message, args) {
+  async executeMessage(_client, message, args, guildSettings) {
     try {
-      await handleCommand(args[0], args.slice(1), message.guildId!, message.author.id, (options) => message.reply(options as MessageReplyOptions));
+      await handleCommand(args[0], args.slice(1), message.guildId!, message.author.id, (options) => message.reply(options as MessageReplyOptions), guildSettings);
     } catch (error) {
       logger.error(`Error executing custom command: ${error} for ${message.author.displayName}`);
       message.reply("There was an error executing that command.");
     }
   },
-  async executeSlash(_client, interaction) {
+  async executeSlash(_client, interaction, guildSettings) {
     const subcommand = interaction.options.getSubcommand(true);
     let args: string[] = [];
 
@@ -69,7 +70,7 @@ export default {
         break;
       case "add":
         if (!interaction.options.getString("name") || !interaction.options.getString("response")) {
-          interaction.reply({ content: "Usage: !custom add [name] [response]" });
+          interaction.reply({ content: `Usage: ${guildSettings.prefix ?? env.BOT_PREFIX}custom add [name] [response]` });
           return;
         }
         args = [interaction.options.getString("name")!, interaction.options.getString("response")!];
@@ -86,14 +87,14 @@ export default {
         return;
       case "remove":
         if (!interaction.options.getString("name")) {
-          interaction.reply({ content: "Usage: !custom remove [name / uuid]" });
+          interaction.reply({ content: `Usage: ${interaction.commandName} remove [name / uuid]` });
           return;
         }
         args = [interaction.options.getString("name")!];
         break;
       case "edit":
         if (!interaction.options.getString("name") || !interaction.options.getString("response")) {
-          interaction.reply({ content: "Usage: !custom edit [name / uuid] [new response]" });
+          interaction.reply({ content: `Usage: ${interaction.commandName} edit [name / uuid] [new response]` });
           return;
         }
         args = [interaction.options.getString("name")!, interaction.options.getString("response")!];
@@ -102,7 +103,7 @@ export default {
 
     try {
       await handleCommand(subcommand, args, interaction.guildId!, interaction.user.id,
-        (options) => interaction.reply(options as InteractionReplyOptions));
+        (options) => interaction.reply(options as InteractionReplyOptions), guildSettings);
     } catch (error) {
       logger.error(`Error executing custom command: ${error} for ${interaction.user.displayName}`);
       interaction.reply({ content: "There was an error executing that command." });
@@ -114,7 +115,6 @@ export default {
     .addSubcommand((subcommand) =>
       subcommand.setName("list").setDescription("List custom commands")
     )
-
     .addSubcommand((subcommand) =>
       subcommand.setName("add").setDescription("Add a custom command")
         .addStringOption((option) =>
@@ -143,7 +143,7 @@ export default {
     ),
 } as Command;
 
-async function handleCommand(subcommand: string, args: string[], guildId: string, userId: string, replyFunction: ReplyFunction) {
+async function handleCommand(subcommand: string, args: string[], guildId: string, userId: string, replyFunction: ReplyFunction, guildSettings: GuildSettings) {
   switch (subcommand) {
     case "list":
       await generateHelpReply(guildId, userId, replyFunction);
@@ -151,7 +151,7 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
     case "add":
       if (args.length < 2) {
         logger.debug(`Invalid number of arguments for add subcommand: ${args.length} (${args.join(" ")})`);
-        await replyFunction({ content: "Usage: !custom add [name] [response]" });
+        await replyFunction({ content: `Usage: ${guildSettings.prefix ?? env.BOT_PREFIX}custom add [name] [response]` });
         return;
       }
       const name = args[0];
@@ -170,7 +170,7 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
     case "remove":
       if (args.length < 2) {
         logger.debug(`Invalid number of arguments for remove subcommand: ${args.length} (${args.join(" ")})`);
-        await replyFunction({ content: "Usage: !custom remove [name / uuid]" });
+        await replyFunction({ content: `Usage: ${guildSettings.prefix ?? env.BOT_PREFIX}custom remove [name / uuid]` });
         return;
       }
       const identifier = args[1];
@@ -180,7 +180,7 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
     case "edit":
       if (args.length < 3) {
         logger.debug(`Invalid number of arguments for edit subcommand: ${args.length} (${args.join(" ")})`);
-        await replyFunction({ content: "Usage: !custom edit [name / uuid] [new response]" });
+        await replyFunction({ content: `Usage: ${guildSettings.prefix ?? env.BOT_PREFIX}custom edit [name / uuid] [new response]` });
         return;
       }
       const editIdentifier = args[1];
@@ -189,7 +189,7 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
       await replyFunction({ content: `Editing custom command: ${editIdentifier} (not implemented yet)` });
       break;
     default:
-      await replyFunction({ content: "Invalid subcommand. Use !custom (list|add|remove|edit)" });
+      await replyFunction({ content: `Invalid subcommand. Use ${guildSettings.prefix ?? env.BOT_PREFIX}custom (list|add|remove|edit)` });
       break;
   }
 }

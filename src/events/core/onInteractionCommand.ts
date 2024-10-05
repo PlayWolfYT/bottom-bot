@@ -2,6 +2,7 @@ import type { Client, Interaction } from "discord.js";
 import type { Event } from "@events/Event";
 import { ChannelType, Events } from "discord.js";
 import Logger from "@/logger";
+import { prisma } from "@/database";
 const logger = new Logger();
 
 export default {
@@ -10,16 +11,19 @@ export default {
     if (!interaction.isCommand()) return;
 
     // Make sure DM interactions get ignored
-    if (
-      interaction.channel?.type === ChannelType.DM ||
-      interaction.channel?.type === ChannelType.GroupDM
-    ) {
+    if (!interaction.inGuild()) {
       await interaction.reply({
         content: "This bot only works in servers.",
         ephemeral: true,
       });
       return;
     }
+
+    const guildSettings = await prisma.guildSettings.findUnique({
+      where: {
+        guildId: interaction.guildId,
+      },
+    });
 
     const command = client.commands.get(interaction.commandName);
 
@@ -28,7 +32,7 @@ export default {
     if (!interaction.isChatInputCommand()) return;
 
     try {
-      await command.executeSlash(client, interaction);
+      await command.executeSlash(client, interaction, guildSettings);
     } catch (error) {
       logger.error(`Error executing interaction-based command: ${error}`);
       await interaction.reply({

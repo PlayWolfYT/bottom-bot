@@ -1,6 +1,7 @@
 import { prisma } from "@/database";
 import type { Event } from "@/events/Event";
 import Logger from "@/logger";
+import { env } from "bun";
 import { Events, Role, Message, Client } from "discord.js";
 
 interface ParseContext {
@@ -18,10 +19,19 @@ export default {
     event: Events.MessageCreate,
     async execute(client, message) {
         if (message.author.bot) return;
-        if (!message.content.startsWith(client.config.prefix)) return;
         if (!message.inGuild()) return;
 
-        const args = message.content.slice(1).trim().split(/ +/);
+        const guildSettings = await prisma.guildSettings.findUnique({
+            where: {
+                guildId: message.guildId,
+            },
+        });
+
+        const prefix = guildSettings?.prefix || env.BOT_PREFIX || "!";
+
+        if (!message.content.startsWith(prefix)) return;
+
+        const args = message.content.slice(prefix.length).trim().split(/ +/);
         let command = args.shift()?.toLowerCase();
         if (!command) return;
 

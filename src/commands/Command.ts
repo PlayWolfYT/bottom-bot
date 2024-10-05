@@ -1,9 +1,10 @@
+import type { GuildSettings } from "@prisma/client";
 import {
   Client,
   Message,
-  CommandInteraction,
   SlashCommandBuilder,
   ChatInputCommandInteraction,
+  type SlashCommandSubcommandsOnlyBuilder,
 } from "discord.js";
 
 export interface Command {
@@ -12,13 +13,15 @@ export interface Command {
   executeMessage?: (
     client: Client,
     message: Message,
-    args: string[]
+    args: string[],
+    guildSettings: GuildSettings
   ) => Promise<void>;
   executeSlash?: (
     client: Client,
-    interaction: ChatInputCommandInteraction
+    interaction: ChatInputCommandInteraction,
+    guildSettings: GuildSettings
   ) => Promise<void>;
-  slashCommandData?: SlashCommandBuilder;
+  slashCommandData?: SlashCommandBuilder | SlashCommandSubcommandsOnlyBuilder;
 }
 
 export function isCommand(command: Command | any): command is Command {

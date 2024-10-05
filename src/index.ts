@@ -38,9 +38,6 @@ function createClient() {
   client.commands = new Collection();
   client.events = new Collection();
   client.intervals = new Collection();
-  client.config = {
-    prefix: env.BOT_PREFIX || "!"
-  }
 
   return client;
 }

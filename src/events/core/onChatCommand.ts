@@ -1,24 +1,24 @@
-import { ChannelType, Client, Events, Message } from "discord.js";
+import { Client, Events, Message } from "discord.js";
 import type { Event } from "@events/Event";
 import { env } from "bun";
 import Logger from "@/logger";
+import { prisma } from "@/database";
 
 const logger = new Logger();
-const prefix = env.BOT_PREFIX || "!";
 
 export default {
   event: Events.MessageCreate,
   async execute(client: Client, message: Message) {
-    if (!message.content.startsWith(prefix) || message.author.bot) return;
+    if (!message.guildId) return;
+    const guildSettings = await prisma.guildSettings.findUnique({
+      where: {
+        guildId: message.guildId,
+      },
+    });
 
-    // Make sure DM messages get ignored
-    if (
-      message.channel.type === ChannelType.DM ||
-      message.channel.type === ChannelType.GroupDM
-    ) {
-      message.reply("This bot only works in servers.");
-      return;
-    }
+    const prefix = guildSettings?.prefix || env.BOT_PREFIX || "!";
+
+    if (!message.content.startsWith(prefix) || message.author.bot) return;
 
     const args = message.content.slice(prefix.length).trim().split(/ +/);
     const commandName = args.shift()?.toLowerCase();
@@ -34,7 +34,7 @@ export default {
 
     try {
       logger.debug(`Executing chat-based command: ${commandName}...`);
-      await command.executeMessage(client, message, args);
+      await command.executeMessage(client, message, args, guildSettings);
       logger.debug(`Chat-based command executed successfully.`);
     } catch (error) {
       logger.error(`Error executing chat-based command: ${error}`);

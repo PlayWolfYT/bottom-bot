@@ -11,34 +11,80 @@ export default {
     if (message.author.bot) return;
 
     if (message.content.toLowerCase().includes("remind me")) {
-      const timeMatch = message.content.match(
-        /remind\s?me (.+?) (to|that) (.+)/i
-      );
-      if (!timeMatch) {
-        message.reply(
-          "Sorry, I couldn't understand when you want to be reminded. Please use the format: 'Remind me [time] to [message]'"
-        );
-        return;
+      // Extract the content after "remind me"
+      const reminderRequest = message.content
+        .substring(
+          message.content.toLowerCase().indexOf("remind me") + "remind me".length
+        )
+        .trim();
+
+      // Get timezone from user settings
+      let timezone = "UTC";
+      const userSettings = await prisma.userSettings.findUnique({
+        where: {
+          userId: message.author.id,
+        },
+      });
+
+      if (!userSettings) {
+        // Get timezone from guild settings
+        const guildSettings = await prisma.guildSettings.findUnique({
+          where: {
+            guildId: message.guildId!,
+          },
+        });
+        if (guildSettings?.timezone) timezone = guildSettings.timezone;
+      } else {
+        if (userSettings.timezone) timezone = userSettings.timezone;
       }
 
-      const [, timeString, , reminderText] = timeMatch;
-      const reminderTime = chrono.parseDate(
-        timeString,
-        {
-          instant: new Date(message.createdTimestamp),
-          timezone: "UTC",
-        },
-        {
-          forwardDate: true,
-        }
-      );
+      // Parse the date from the content
+      const parsedResults = chrono.parse(reminderRequest, { instant: new Date(message.createdTimestamp), timezone }, { forwardDate: true });
 
-      if (!reminderTime) {
+      if (parsedResults.length === 0) {
         message.reply(
           "Sorry, I couldn't understand the time you specified. Please try again with a clearer time format."
         );
         return;
       }
+
+      const parsedResult = parsedResults[0];
+      const reminderTime = parsedResult.start.date();
+
+      // Remove the time expressions from the content to get the reminder text
+      let reminderText = reminderRequest;
+      parsedResults.forEach((result) => {
+        reminderText = reminderText.replace(result.text, "");
+      });
+
+      // Detect and store the prefix ("to" or "that") if present
+      let prefixMatch = reminderText.match(/^(to|that)\s+/i);
+      let prefix = "to"; // Default prefix
+      if (prefixMatch) {
+        prefix = prefixMatch[1].toLowerCase();
+        // Remove the prefix from the reminder text
+        reminderText = reminderText.replace(/^(to|that)\s+/i, "").trim();
+      }
+
+      // Clean up the reminder text
+      reminderText = reminderText.trim();
+
+      if (!reminderText) {
+        message.reply(
+          "Sorry, I couldn't find what you want to be reminded about. Please specify the reminder text."
+        );
+        return;
+      }
+
+      // Determine if the time expression is relative
+      const timeExpressionText = parsedResult.text.toLowerCase();
+      const relativeKeywords = ['in ', 'after ', 'later', 'from now'];
+      let isRelative = relativeKeywords.some((keyword) => timeExpressionText.includes(keyword));
+
+      // Determine the time format and word
+      const timeUnix = Math.floor(reminderTime.getTime() / 1000);
+      const timeFormat = isRelative ? `<t:${timeUnix}:R>` : `<t:${timeUnix}:f>`;
+      const timeWord = isRelative ? "in" : "on";
 
       try {
         await prisma.reminder.create({
@@ -53,9 +99,7 @@ export default {
         });
 
         message.reply(
-          `Okay, I'll remind you "${reminderText}" <t:${Math.floor(
-            reminderTime.getTime() / 1000
-          )}:R>`
+          `Okay, I'll remind you ${prefix} "${reminderText}" ${timeWord} ${timeFormat}`
         );
       } catch (error) {
         logger.error(`Error creating reminder: ${error}`);
