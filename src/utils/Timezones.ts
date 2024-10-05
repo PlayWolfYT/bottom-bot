@@ -20,3 +20,39 @@ export const TIMEZONES = [
     "WFT", "WGST", "WGT", "WIB", "WIT", "WITA", "WST", "WT", "YAKST", "YAKT",
     "YAPT", "YEKST", "YEKT"
 ];
+export const GMT_TO_TIMEZONE = {
+    "GMT+0": "GMT",
+    "GMT+1": "CET",
+    "GMT+2": "EET",
+    "GMT+3": "MSK",
+    "GMT+4": "AMT",
+    "GMT+5": "PKT",
+    "GMT+6": "OMSK",
+    "GMT+7": "KRAT",
+    "GMT+8": "CST",
+    "GMT+9": "JST",
+    "GMT+10": "AEST",
+    "GMT+11": "SAKT",
+    "GMT+12": "NZST",
+    "GMT-1": "WAT",
+    "GMT-2": "AT",
+    "GMT-3": "ART",
+    "GMT-4": "AST",
+    "GMT-5": "EST",
+    "GMT-6": "CST",
+    "GMT-7": "MST",
+    "GMT-8": "PST",
+    "GMT-9": "AKST",
+    "GMT-10": "HST",
+    "GMT-11": "NT",
+    "GMT-12": "IDLW",
+};
+
+
+export function getTimezone(input: string): string | false {
+    if (input.length === 0) return "UTC";
+
+    if (TIMEZONES.includes(input)) return input;
+    if (GMT_TO_TIMEZONE[input as keyof typeof GMT_TO_TIMEZONE]) return GMT_TO_TIMEZONE[input as keyof typeof GMT_TO_TIMEZONE];
+    return false;
+}

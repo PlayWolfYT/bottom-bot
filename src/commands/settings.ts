@@ -2,7 +2,7 @@ import type { Command } from "@/commands/Command";
 import { prisma } from "@/database";
 import Logger from "@/logger";
 import type { ReplyFunction } from "@/types";
-import { TIMEZONES } from "@/utils/Timezones";
+import { getTimezone, TIMEZONES } from "@/utils/Timezones";
 import { env } from "bun";
 import { ApplicationCommandOptionType, type Channel, Attachment, Role, SlashCommandBuilder, User, ChannelType, type APIRole, type InteractionReplyOptions, type MessageReplyOptions } from "discord.js";
 
@@ -170,7 +170,7 @@ async function handleGuildCommand(setting: string, value: MappedOptionType[keyof
             value = (value as string).toUpperCase();
 
             // Make sure the timezone is valid
-            if (!TIMEZONES.includes(value) && value !== "DEFAULT" && value !== "LIST") {
+            if (!getTimezone(value) && value !== "DEFAULT" && value !== "LIST") {
                 replyFunction({ content: "That is not a valid timezone." });
                 return;
             } else if (value === "LIST") {
@@ -191,6 +191,8 @@ async function handleGuildCommand(setting: string, value: MappedOptionType[keyof
                 }
                 return;
             }
+
+            value = getTimezone(value as string);
 
             await prisma.guildSettings.upsert({
                 where: {
@@ -218,7 +220,7 @@ async function handleUserCommand(setting: string, value: MappedOptionType[keyof 
             value = (value as string).toUpperCase();
 
             // Make sure the timezone is valid
-            if (!TIMEZONES.includes(value) && value !== "DEFAULT" && value !== "LIST") {
+            if (!getTimezone(value) && value !== "DEFAULT" && value !== "LIST") {
                 replyFunction({ content: "That is not a valid timezone." });
                 return;
             } else if (value === "LIST") {
@@ -240,7 +242,7 @@ async function handleUserCommand(setting: string, value: MappedOptionType[keyof 
                 return;
             }
 
-            console.log("Setting timezone of user " + userId + " to " + value);
+            value = getTimezone(value as string) as string;
 
             await prisma.userSettings.upsert({
                 create: {
