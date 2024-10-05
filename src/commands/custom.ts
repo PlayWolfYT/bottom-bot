@@ -35,7 +35,7 @@ async function generateHelpReply(
 
       for (const command of displayedCommands) {
         embed.addFields({
-          name: command.name.slice(0, 256),
+          name: command.name.slice(0, 256 - command.id.length - 3) + ` (${command.id})`,
           value: command.response.replaceAll("https://", "htt" + INVISIBLE_CHARACTER + "ps://").slice(0, 1024),
           inline: true,
         });
@@ -148,14 +148,20 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
     case "list":
       await generateHelpReply(guildId, userId, replyFunction);
       break;
-    case "add":
+    case "add": {
       if (args.length < 2) {
-        logger.debug(`Invalid number of arguments for add subcommand: ${args.length} (${args.join(" ")})`);
         await replyFunction({ content: `Usage: ${guildSettings.prefix ?? env.BOT_PREFIX}custom add [name] [response]` });
         return;
       }
       const name = args[0];
       const response = args.slice(1).join(" ");
+
+      // Check if a custom command with the same name already exists
+      const existingCommand = await prisma.customCommand.findFirst({ where: { name, guildId } });
+      if (existingCommand) {
+        await replyFunction({ content: `A custom command with the name **'${name}'** already exists. (ID: ${existingCommand.id})` });
+        return;
+      }
 
       const customCommand = await prisma.customCommand.create({
         data: {
@@ -167,27 +173,39 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
 
       await replyFunction({ content: "", embeds: [new EmbedBuilder().setTitle("Custom Command Added").setDescription(`Command **'${customCommand.name}'** with response **'${customCommand.response}'** has been added. (ID: ${customCommand.id})`).setColor("#00ff00")] });
       break;
-    case "remove":
-      if (args.length < 2) {
-        logger.debug(`Invalid number of arguments for remove subcommand: ${args.length} (${args.join(" ")})`);
+    }
+    case "remove": {
+      if (args.length < 1) {
         await replyFunction({ content: `Usage: ${guildSettings.prefix ?? env.BOT_PREFIX}custom remove [name / uuid]` });
         return;
       }
-      const identifier = args[1];
-      // TODO: Implement removing custom command
-      await replyFunction({ content: `Removing custom command: ${identifier} (not implemented yet)` });
+      const identifier = args[0];
+
+      const customCommand = await prisma.customCommand.findFirst({ where: { OR: [{ name: identifier }, { id: identifier }] } });
+      if (!customCommand) {
+        await replyFunction({ content: `Couldnt find a command with ID or name **'${identifier}'**` });
+        return;
+      }
+      await prisma.customCommand.delete({ where: { id: customCommand.id } });
+      await replyFunction({ content: "", embeds: [new EmbedBuilder().setTitle("Custom Command Removed").setDescription(`Command **'${customCommand.name}'** with response **'${customCommand.response}'** has been removed. (ID: ${customCommand.id})`).setColor("#ff0000")] });
       break;
-    case "edit":
-      if (args.length < 3) {
-        logger.debug(`Invalid number of arguments for edit subcommand: ${args.length} (${args.join(" ")})`);
+    }
+    case "edit": {
+      if (args.length < 2) {
         await replyFunction({ content: `Usage: ${guildSettings.prefix ?? env.BOT_PREFIX}custom edit [name / uuid] [new response]` });
         return;
       }
-      const editIdentifier = args[1];
-      const newResponse = args.slice(2).join(" ");
-      // TODO: Implement editing custom command
-      await replyFunction({ content: `Editing custom command: ${editIdentifier} (not implemented yet)` });
+      const editIdentifier = args[0];
+      const newResponse = args.slice(1).join(" ");
+      const customCommand = await prisma.customCommand.findFirst({ where: { OR: [{ name: editIdentifier }, { id: editIdentifier }] } });
+      if (!customCommand) {
+        await replyFunction({ content: `Couldnt find a command with ID or name **'${editIdentifier}'**` });
+        return;
+      }
+      await prisma.customCommand.update({ where: { id: customCommand.id }, data: { response: newResponse } });
+      await replyFunction({ content: "", embeds: [new EmbedBuilder().setTitle("Custom Command Edited").setDescription(`Command **'${customCommand.name}'** with response **'${customCommand.response}'** has been edited. (ID: ${customCommand.id})`).setColor("#00ff00")] });
       break;
+    }
     default:
       await replyFunction({ content: `Invalid subcommand. Use ${guildSettings.prefix ?? env.BOT_PREFIX}custom (list|add|remove|edit)` });
       break;

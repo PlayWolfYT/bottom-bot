@@ -55,11 +55,11 @@ export default {
             variables: {},
         };
 
+        logger.debug(`Custom command ${command} triggered by ${message.author.username}`);
+
         const parsedResponse = await parseAdvancedResponse(response, context);
 
-        if (parsedResponse) {
-            logger.info(`Custom command triggered: ${command} - ${parsedResponse} - ${message.author.username} - ${message.author.id} - ${message.guildId} - ${message.channelId}`);
-            logger.debug(`message content: ${message.content}, detected command: ${command}, prisma command: ${customCommand.name}`);
+        if (parsedResponse !== null) {
             await message.channel.send(parsedResponse);
 
             // Send follow-up messages if any
@@ -68,56 +68,122 @@ export default {
                     await message.channel.send(followUp);
                 }
             }
+        } else {
+            logger.warn(`Custom command ${command} triggered by ${message.author.username} returned an empty response`);
+            await message.channel.send(`(Empty response)`);
         }
     },
 } as Event;
 
+
 async function parseAdvancedResponse(response: string, context: ParseContext): Promise<string | null> {
-    let parsedResponse = response;
+    let parsedResponse = parseBasicReplacements(response, context);
 
-    // Basic replacements
-    parsedResponse = parseBasicReplacements(parsedResponse, context);
+    // Now process instructions step by step
+    let loopCount = 0; // To prevent infinite loops
+    const maxLoops = 1000;
+    const instructionRegex = /{(set|webrequest|eval|if|choose|random|followup|require|not):(.*?)}|{if:.*?}[\s\S]*?{endif}/;
 
-    // Variable assignments and usages
-    parsedResponse = await parseVariables(parsedResponse, context);
+    while (loopCount < maxLoops) {
+        loopCount++;
+        const match = parsedResponse.match(instructionRegex);
+        if (!match) {
+            break;
+        }
 
-    // Advanced parsing
-    parsedResponse = await parseConditionals(parsedResponse, context);
-    parsedResponse = parseChoose(parsedResponse, context);
+        const instruction = match[0];
+        const startIndex = match.index || 0;
+        const endIndex = startIndex + instruction.length;
 
-    // Permission checks
-    const canExecute = await checkPermissions(parsedResponse, context);
-    if (!canExecute) return null;
+        let replacement = '';
 
-    // Remove permission check lines from the response
-    parsedResponse = parsedResponse.replace(/^{(require|not):.*}$/gm, '').trim();
+        if (instruction.startsWith('{set:')) {
+            // Variable assignment
+            replacement = await processVariableAssignment(instruction, context);
+        } else if (instruction.startsWith('{webrequest:')) {
+            // Web request
+            replacement = await processWebRequestInstruction(instruction, context);
+        } else if (instruction.startsWith('{eval:')) {
+            // Eval
+            replacement = await processEvalInstruction(instruction, context);
+        } else if (instruction.startsWith('{if:')) {
+            // Conditional
+            replacement = await processConditionalInstruction(instruction, context);
+        } else if (instruction.startsWith('{choose:')) {
+            // Choose
+            replacement = processChooseInstruction(instruction, context);
+        } else if (instruction.startsWith('{random:')) {
+            // Random
+            replacement = processRandomInstruction(instruction, context);
+        } else if (instruction.startsWith('{followup:')) {
+            // Follow-up
+            replacement = processFollowUpInstruction(instruction, context);
+        } else if (instruction.startsWith('{require:') || instruction.startsWith('{not:')) {
+            // Permission checks
+            const canExecute = await checkPermissions(parsedResponse, context);
+            if (!canExecute) return null;
 
-    // Parse arguments
+            // Remove permission check lines from the response
+            replacement = '';
+        } else {
+            // Unknown instruction, skip
+            replacement = instruction;
+        }
+
+        // Replace the instruction in parsedResponse
+        parsedResponse = parsedResponse.slice(0, startIndex) + replacement + parsedResponse.slice(endIndex);
+
+        // Process any variable usages in the replacement
+        parsedResponse = parseVariableUsages(parsedResponse, context);
+    }
+
+    if (loopCount >= maxLoops) {
+        throw new Error('Maximum loop count exceeded in parseAdvancedResponse');
+    }
+
+    // After processing all instructions, process any remaining variable usages
+    parsedResponse = parseVariableUsages(parsedResponse, context);
+
+    // Process arguments
     parsedResponse = parseArguments(parsedResponse, context);
-
-    // Handle follow-up messages
-    const followUps = extractFollowUps(parsedResponse, context);
-    parsedResponse = removeFollowUps(parsedResponse);
-
-    context.followUps = followUps;
 
     return parsedResponse;
 }
 
-async function parseVariables(response: string, context: ParseContext): Promise<string> {
-    // Variable assignment
-    const setRegex = /{set:(\w+)=(.*?)}/g;
-    response = await replaceAsync(response, setRegex, async (match, varName, value) => {
-        // Process value for possible nested placeholders
-        value = await parseNestedPlaceholders(value, context);
-        context.variables[varName] = value;
-        return ''; // Remove the {set:...} from the response
-    });
 
-    // Variable usage
-    const varRegex = /{var:(\w+)}/g;
-    response = response.replace(varRegex, (_, varName) => {
-        return context.variables[varName] || '';
+async function processVariableAssignment(instruction: string, context: ParseContext): Promise<string> {
+    // Instruction format: {set:varName=value}
+    const setRegex = /{set:(\w+)=(.*?)}/;
+    const match = instruction.match(setRegex);
+    if (!match) return instruction; // Shouldn't happen
+
+    const varName = match[1];
+    let value = match[2];
+
+    // Process value for possible nested placeholders
+    value = await parseNestedPlaceholders(value, context);
+    context.variables[varName] = value;
+    return ''; // Remove the {set:...} from the response
+}
+
+function parseVariableUsages(response: string, context: ParseContext): string {
+    // Variable usage with support for nested properties
+    const varRegex = /{var:([\w.]+)}/g;
+    response = response.replace(varRegex, (_, varPath) => {
+        const parts = varPath.split('.');
+        let value = context.variables;
+        for (const part of parts) {
+            if (value && typeof value === 'object' && part in value) {
+                value = value[part];
+            } else {
+                value = {};
+                break;
+            }
+        }
+        if (typeof value === 'object' && value !== null) {
+            return JSON.stringify(value, null, 2);
+        }
+        return (value as any)?.toString() || '';
     });
 
     return response;
@@ -126,6 +192,9 @@ async function parseVariables(response: string, context: ParseContext): Promise<
 async function parseNestedPlaceholders(value: string, context: ParseContext): Promise<string> {
     // Process basic replacements
     value = parseBasicReplacements(value, context);
+
+    // Process variable usages
+    value = parseVariableUsages(value, context);
 
     // Process arguments
     value = parseArguments(value, context);
@@ -138,27 +207,6 @@ async function parseNestedPlaceholders(value: string, context: ParseContext): Pr
 
     return value;
 }
-
-function extractFollowUps(response: string, context: ParseContext): string[] {
-    const followUps: string[] = [];
-    const followUpRegex = /{followup:(.*?)}/g;
-    let match;
-    while ((match = followUpRegex.exec(response)) !== null) {
-        let followUpContent = match[1];
-
-        // Process the follow-up content for placeholders
-        followUpContent = parseBasicReplacements(followUpContent, context);
-        followUpContent = parseArguments(followUpContent, context);
-
-        followUps.push(followUpContent);
-    }
-    return followUps;
-}
-
-function removeFollowUps(response: string): string {
-    return response.replace(/{followup:.*?}/g, '').trim();
-}
-
 
 function parseBasicReplacements(response: string, context: ParseContext): string {
     const { message, client } = context;
@@ -198,7 +246,6 @@ function parseBasicReplacements(response: string, context: ParseContext): string
         .replace(/{client\.uptime}/g, formatUptime(client.uptime || 0));
 }
 
-
 function formatUptime(uptime: number): string {
     const seconds = Math.floor((uptime / 1000) % 60);
     const minutes = Math.floor((uptime / (1000 * 60)) % 60);
@@ -208,35 +255,42 @@ function formatUptime(uptime: number): string {
     return `${days}d ${hours}h ${minutes}m ${seconds}s`;
 }
 
+function processRandomInstruction(instruction: string, context: ParseContext): string {
+    // Instruction format: {random:min-max}
+    const randomRegex = /{random:(\d+)-(\d+)}/;
+    const match = instruction.match(randomRegex);
+    if (!match) return instruction;
 
-async function parseConditionals(response: string, context: ParseContext): Promise<string> {
-    const ifRegex = /{if:(.*?)}([\s\S]*?)(?:{else}([\s\S]*?))?{endif}/g;
-
-    return await replaceAsync(response, ifRegex, async (match, condition, ifTrue, ifFalse = '') => {
-        // No need to replace placeholders in the condition
-        // since variables are accessed directly
-
-        const result = await evaluateCondition(condition, context);
-        return result ? ifTrue : ifFalse;
-    });
+    const min = parseInt(match[1], 10);
+    const max = parseInt(match[2], 10);
+    const num = Math.floor(Math.random() * (max - min + 1)) + min;
+    return num.toString();
 }
 
+async function processConditionalInstruction(instruction: string, context: ParseContext): Promise<string> {
+    // Instruction format: {if:condition}...{else}...{endif}
+    const ifRegex = /{if:(.*?)}([\s\S]*?)(?:{else}([\s\S]*?))?{endif}/;
+    const match = instruction.match(ifRegex);
+    if (!match) return instruction;
 
+    const condition = match[1];
+    const ifTrue = match[2];
+    const ifFalse = match[3] || '';
 
-function parseChoose(response: string, context: ParseContext): string {
-    const chooseRegex = /{choose:(.*?)}/g;
-    const choices: string[] = [];
-
-    response = response.replace(chooseRegex, (_, options) => {
-        const optionList = options.split(';');
-        const choice = optionList[Math.floor(Math.random() * optionList.length)];
-        choices.push(choice);
-        return '{choice}';
-    });
-
-    return response.replace(/{choice}/g, () => choices.shift() || '');
+    const result = await evaluateCondition(condition, context);
+    return result ? ifTrue : ifFalse;
 }
 
+function processChooseInstruction(instruction: string, context: ParseContext): string {
+    // Instruction format: {choose:option1;option2;...}
+    const chooseRegex = /{choose:(.*?)}/;
+    const match = instruction.match(chooseRegex);
+    if (!match) return instruction;
+
+    const options = match[1].split(';');
+    const choice = options[Math.floor(Math.random() * options.length)];
+    return choice;
+}
 
 async function checkPermissions(response: string, context: ParseContext): Promise<boolean> {
     const { message } = context;
@@ -293,7 +347,7 @@ async function evaluateCondition(condition: string, context: ParseContext): Prom
     }
 }
 
-async function safeEval(condition: string, context: ParseContext): Promise<boolean> {
+async function safeEval(condition: string, context: ParseContext): Promise<boolean | any> {
     const { message } = context;
 
     // Define allowed variables and functions
@@ -359,6 +413,34 @@ async function safeEval(condition: string, context: ParseContext): Promise<boole
             id: message.channel.id,
             name: ('name' in message.channel && message.channel.name) || '',
         },
+        // Add access to custom variables
+        var: context.variables,
+        // Add JSON parsing function
+        parseJSON: (key: string) => {
+            try {
+                return JSON.parse(context.variables[key]);
+            } catch (error) {
+                console.error(`Error parsing JSON for key ${key}: ${error}`);
+                return null;
+            }
+        },
+        // Add JSON methods
+        JSON: {
+            stringify: JSON.stringify,
+            parse: JSON.parse
+        },
+        // Add a safe eval function for specific operations
+        safeEval: (code: string) => {
+            // List of allowed functions
+            const allowedFunctions = ['JSON.stringify', 'JSON.parse'];
+
+            // Check if the code starts with an allowed function
+            if (allowedFunctions.some(func => code.trim().startsWith(func))) {
+                return eval(code);
+            } else {
+                throw new Error('Unauthorized eval operation');
+            }
+        }
     };
 
     // Create a new function with the condition
@@ -368,15 +450,73 @@ async function safeEval(condition: string, context: ParseContext): Promise<boole
     return func(...Object.values(variables));
 }
 
+function processFollowUpInstruction(instruction: string, context: ParseContext): string {
+    // Instruction format: {followup:message}
+    const followUpRegex = /{followup:(.*?)}/;
+    const match = instruction.match(followUpRegex);
+    if (!match) return instruction;
 
+    let followUpContent = match[1];
 
-async function replaceAsync(str: string, regex: RegExp, asyncFn: (...args: string[]) => Promise<string>): Promise<string> {
-    const promises: Promise<string>[] = [];
-    str.replace(regex, (match, ...args) => {
-        const promise = asyncFn(match, ...args);
-        promises.push(promise);
-        return match;
-    });
-    const data = await Promise.all(promises);
-    return str.replace(regex, () => data.shift() || '');
+    // Process the follow-up content for placeholders
+    followUpContent = parseBasicReplacements(followUpContent, context);
+    followUpContent = parseArguments(followUpContent, context);
+
+    context.followUps = context.followUps || [];
+    context.followUps.push(followUpContent);
+
+    return ''; // Remove the {followup:...} from the response
+}
+
+async function processWebRequestInstruction(instruction: string, context: ParseContext): Promise<string> {
+    // Instruction format: {webrequest:varName:url}
+    const webRequestRegex = /{webrequest:(\w+):([^}]+)}/;
+    const match = instruction.match(webRequestRegex);
+    if (!match) return instruction;
+
+    const variableName = match[1];
+    let url = match[2];
+
+    // Process the URL for placeholders
+    url = await parseNestedPlaceholders(url, context);
+
+    try {
+        const options: RequestInit = {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json',
+            },
+        };
+
+        logger.debug(`Making web request: ${url}`);
+        const result = await fetch(url, options);
+        if (!result.ok) {
+            throw new Error(`HTTP error! status: ${result.status}`);
+        }
+
+        const data = await result.json();
+        context.variables[variableName] = data;
+        return ''; // Remove the {webrequest:...} from the response
+    } catch (error: any) {
+        console.error(`Error making web request: ${error}`);
+        return `Error: ${error.message ?? error.toString()}`;
+    }
+}
+
+async function processEvalInstruction(instruction: string, context: ParseContext): Promise<string> {
+    // Instruction format: {eval:code}
+    const evalRegex = /{eval:(.*?)}/;
+    const match = instruction.match(evalRegex);
+    if (!match) return instruction;
+
+    const code = match[1];
+
+    try {
+        const result = await safeEval(code, context);
+        return result.toString();
+    } catch (error) {
+        console.error(`Error in eval: ${error}`);
+        return `Error: ${error}`;
+    }
 }
