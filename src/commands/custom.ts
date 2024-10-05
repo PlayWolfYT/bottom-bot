@@ -8,6 +8,8 @@ import type { CustomCommand } from "@prisma/client";
 
 const logger = new Logger();
 
+const INVISIBLE_CHARACTER = "\u200B";
+
 async function generateHelpReply(
   guildId: string,
   userId: string,
@@ -23,7 +25,7 @@ async function generateHelpReply(
       const totalPages = await prisma.customCommand.count({ where: { guildId } });
       return { items: customCommands, totalPages: Math.ceil(totalPages / itemsPerPage) };
     },
-    (displayedCommands, currentPage, totalPages) => {
+    (displayedCommands: CustomCommand[], currentPage: number, totalPages: number) => {
       const embed = new EmbedBuilder()
         .setTitle("Custom Commands")
         .setDescription(`Custom commands are commands that you can add to the bot.\n${displayedCommands.length} commands found.`)
@@ -33,7 +35,7 @@ async function generateHelpReply(
       for (const command of displayedCommands) {
         embed.addFields({
           name: command.name.slice(0, 256),
-          value: command.response.slice(0, 1024),
+          value: command.response.replaceAll("https://", "htt" + INVISIBLE_CHARACTER + "ps://").slice(0, 1024),
           inline: true,
         });
       }

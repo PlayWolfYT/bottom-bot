@@ -7,9 +7,19 @@ import crypto from "crypto";
 
 const logger = new Logger();
 
+type ItemResultsWithTotalPages<T> = { items: T[]; totalPages: number };
+type ItemResultsWithHasNextPage<T> = { items: T[]; hasNextPage: boolean };
+
+type FetchItemsResult<T> =
+    | ItemResultsWithTotalPages<T>
+    | ItemResultsWithHasNextPage<T>;
+
+type EmbedGeneratorWithTotalPages<T> = (displayedItems: T[], currentPage: number, totalPages: number) => EmbedBuilder;
+type EmbedGeneratorWithHasNextPage<T> = (displayedItems: T[], currentPage: number, hasNextPage: boolean) => EmbedBuilder;
+
 export class PagedEmbed<T> {
-    private fetchItems: (page: number, itemsPerPage: number) => Promise<{ items: T[], totalPages?: number }>;
-    private embedGenerator: (displayedItems: T[], currentPage: number, totalPages?: number) => EmbedBuilder;
+    private fetchItems: (page: number, itemsPerPage: number) => Promise<FetchItemsResult<T>>;
+    private embedGenerator: EmbedGeneratorWithTotalPages<T> | EmbedGeneratorWithHasNextPage<T>;
     private userId: string;
     private message: Message | null;
     private itemsPerPage: number;
@@ -18,8 +28,8 @@ export class PagedEmbed<T> {
     private replyFunction: ReplyFunction;
 
     constructor(
-        fetchItems: (page: number, itemsPerPage: number) => Promise<{ items: T[], totalPages?: number }>,
-        embedGenerator: (displayedItems: T[], currentPage: number, totalPages?: number) => EmbedBuilder,
+        fetchItems: (page: number, itemsPerPage: number) => Promise<FetchItemsResult<T>>,
+        embedGenerator: EmbedGeneratorWithTotalPages<T> | EmbedGeneratorWithHasNextPage<T>,
         userId: string,
         replyFunction: ReplyFunction,
         itemsPerPage: number = 9,
@@ -37,9 +47,18 @@ export class PagedEmbed<T> {
     }
 
     private async generatePage(page: number): Promise<{ embed: EmbedBuilder; row: ActionRowBuilder<ButtonBuilder> }> {
-        const { items, totalPages } = await this.fetchItems(page, this.itemsPerPage);
+        const result = await this.fetchItems(page, this.itemsPerPage);
 
-        const embed = this.embedGenerator(items, page, totalPages);
+        let embed: EmbedBuilder;
+        let hasNextPage: boolean;
+
+        if (this.isItemResultsWithTotalPages(result)) {
+            embed = (this.embedGenerator as EmbedGeneratorWithTotalPages<T>)(result.items, page, result.totalPages);
+            hasNextPage = page < result.totalPages;
+        } else {
+            embed = (this.embedGenerator as EmbedGeneratorWithHasNextPage<T>)(result.items, page, result.hasNextPage);
+            hasNextPage = result.hasNextPage;
+        }
 
         const row = new ActionRowBuilder<ButtonBuilder>()
             .addComponents(
@@ -52,7 +71,7 @@ export class PagedEmbed<T> {
                     .setCustomId(`${this.buttonPrefix}NextPage_${page}`)
                     .setLabel('Next Page')
                     .setStyle(ButtonStyle.Primary)
-                    .setDisabled(/* Check if we have a next page */ page === totalPages)
+                    .setDisabled(!hasNextPage)
             );
 
         return { embed, row };
@@ -107,5 +126,9 @@ export class PagedEmbed<T> {
 
     public async createPagedEmbed(): Promise<void> {
         await this.handlePage(1);
+    }
+
+    private isItemResultsWithTotalPages(result: FetchItemsResult<T>): result is ItemResultsWithTotalPages<T> {
+        return 'totalPages' in result;
     }
 }
