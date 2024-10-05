@@ -1,5 +1,6 @@
 services:
   bot:
+    tty: true
     build: .
     restart: always
     env_file: .env
