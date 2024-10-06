@@ -158,27 +158,6 @@ async function loadIntervals() {
   intervalLogger.debug('Successfully executed intervals that should execute on init.');
 }
 
-// Reload Function
-async function reloadBot() {
-  try {
-    // Destroy the existing client
-    await client.destroy();
-
-    // Create a new client
-
-    // Reload commands
-    await loadCommands();
-
-    // Reload events
-    await loadEvents();
-
-    // Reload intervals
-    await loadIntervals();
-  } catch (error) {
-    logger.error(`Error reloading the bot: ${error}`);
-  }
-}
-
 // Shutdown Function
 async function gracefulShutdown(signal: string) {
   logger.info(`Received ${chalk.bold.red(signal)}. Logging out and shutting down...`);
@@ -225,27 +204,6 @@ async function main() {
 
   // Login to the bot
   client.login(env.BOT_TOKEN);
-
-  // Set up input listeners
-  setupInputListeners();
-}
-
-// Input Listener Setup
-function setupInputListeners() {
-  if (process.stdin.isTTY) {
-    process.stdin.setRawMode(true);
-    process.stdin.resume();
-    process.stdin.on('data', handleKeyPress);
-  }
-}
-
-function handleKeyPress(key: Buffer) {
-  const keyString = key.toString().toLowerCase();
-  if (keyString === 'q') {
-    gracefulShutdown(chalk.underline('Q') + 'uit');
-  } else if (keyString === "r") {
-    reloadBot();
-  }
 }
 
 // Shutdown Hooks

@@ -11,13 +11,12 @@ Create and manage custom commands with advanced response capabilities:
 - **Basic Replacements**: Use placeholders for user, server, and channel information.
 - **Variable Assignment and Usage**: Set and use variables within commands.
 - **Random Number Generation**: Generate random numbers within a specified range.
-- **Conditional Statements**: Create dynamic responses based on conditions.
 - **Choose Function**: Randomly select from a list of options.
 - **Permission Checks**: Restrict command usage based on roles or channels.
-- **Argument Parsing**: Easily access command arguments.
 - **Follow-up Messages**: Send additional messages after the main response.
+- **Web-Requests**: Make web-requests and use their output for the response.
 
-### Examples
+#### Examples
 ##### Basic Replacements
 
 These placeholders are replaced with specific information about the user, server, or context.
@@ -74,90 +73,55 @@ The first word you said was: {args[0]}
 
 You can set and use variables within your custom command.
 
-- `{set:varName=value}`: Assigns a value to a variable
-- `{var:varName}`: Uses the value of a variable
+- `{set;varName;value}`: Assigns a value to a variable
+- `{varName}`: Uses the value of a variable
 
 Example:
 ```
-{set:greeting=Hello there!}
-{var:greeting} How are you today?
+{set;greeting;Hello there!}
+{greeting} How are you today?
 ```
 
-#### Random Number Generation
+##### Random Number Generation
 
 Generate random numbers within a specified range.
 
-- `{random:min-max}`: Generates a random number between min and max (inclusive)
+- `{random;min;max}`: Generates a random number between min and max (inclusive)
 
 Example:
 ```
-Your lucky number is: {random:1-100}
+Your lucky number is: {random;1;100}
 ```
 
-#### Conditional Statements
-
-Use if-else conditions to create dynamic responses.
-
-Syntax:
-```
-{if:condition}
-  Content if true
-{else}
-  Content if false
-{endif}
-```
-
-Example:
-```
-{if:user.hasRole('VIP')}
-  Welcome, esteemed VIP member!
-{else}
-  Welcome, valued member!
-{endif}
-```
-
-#### Choose Function
+##### Choose Function
 
 Randomly select from a list of options.
 
-Syntax: `{choose:option1;option2;option3}`
+Syntax: `{choose;option1;option2;option3}`
 
 Example:
 ```
-Your spirit animal is: {choose:lion;tiger;bear;eagle;wolf}
+Your spirit animal is: {choose;lion;tiger;bear;eagle;wolf}
 ```
 
-#### Permission Checks
+##### Permission Checks
 
 Restrict command usage based on roles or channels.
 
-- `{require:roleName}`: User must have the specified role
-- `{require:#channelName}`: Command must be used in the specified channel
-- `{require:serverMod}`: User must have the "Manage Guild" permission
-- `{not:roleName}`: User must not have the specified role
-- `{not:#channelName}`: Command must not be used in the specified channel
+- `{require;roleName}`: User must have the specified role
+- `{require;#channelName}`: Command must be used in the specified channel
+- `{require;serverMod}`: User must have the "Manage Guild" permission
+- `{not;roleName}`: User must not have the specified role
+- `{not;#channelName}`: Command must not be used in the specified channel
 
 Example:
 ```
-{require:VIP}
-{not:#general}
+{require;VIP}
+{not;#general}
 This is a special message for VIP members, not in the general channel.
 ```
 
-#### Argument Parsing
-
-Access command arguments easily.
-
-- `$n`: References the nth argument (1-based index)
-- `$n+`: References all arguments from the nth position onwards
-
-Example:
-```
-First argument: $1
-All arguments from the second onwards: $2+
-```
-
-#### Follow-up Messages
+##### Follow-up Messages
 
 Send additional messages after the main response.
 
@@ -170,32 +134,47 @@ Welcome to the server!
 {followup:Enjoy your stay!}
 ```
 
-#### All together
+##### Web-Requests
 
-You can combine these features for more complex commands. Here's an advanced example:
+Make a web-request to an api and receive its output
 
+Syntax: `{webrequest;outputVariable;URL;requestMethod?;body?}`
+Note: The `requestMethod` defaults to `GET`, and the `body` defaults to `null`. Both of those arguments are optional!
+
+Example:
 ```
-{require:Member}
-{set:greeting=Welcome}
-{if:user.hasRole('VIP')}
-  {set:greeting=Greetings, esteemed}
-{endif}
-{var:greeting} {user.username}!
-
-Your lucky number for today is {random:1-100}.
-
-I hope you enjoy these {choose:funny;interesting;exciting;thought-provoking} facts:
-1. $1
-2. $2
-3. $3
-
-{followup:Thanks for using the fun facts command!}
+{webrequest;dadJoke;https://icanhazdadjoke.com/}
+{dadJoke.joke}
 ```
 
-This example combines role checks, variable assignment and usage, conditionals, random number generation, the choose function, argument parsing, and a follow-up message.
+Advanced Example:
+```
+{webrequest;counter;https://your-website.com/api/countUsers;POST;\{userId: {user.id} \}}
+The new count is {counter}
+```
+Note: The body is `\{userId: {user.id} \}`. This will be parsed by JSON (which also means you can use " to pass a simple string as the body). 
+The `{user.id}` *inside* the body will be replaced by the parser, since it is not escaped.
 
-Remember, when creating custom commands, you can use these features in various combinations to create engaging and dynamic responses tailored to your server's needs.
+##### All together
 
+Here is an example, which shows all of those features working together.
+```
+{require;VIP}
+{not;#general}
+Welcome, {user.mention} to {server.name}! You're a VIP member, so here's an exclusive joke for you:
+
+{webrequest;dadJoke;https://icanhazdadjoke.com/}
+{dadJoke.joke}
+
+{set;theAnswer;42}
+The answer to everything is {theAnswer}
+
+Here's a random number between 1 and 100: {random;1;100}
+
+Your lucky color today is: {choose;red;blue;green;yellow}
+
+{followup;https://tenor.com/view/some-random-gif-123456789}
+```
 
 ### Reminders
 

@@ -9,7 +9,7 @@ import { env } from "bun";
 
 const logger = new Logger();
 
-const INVISIBLE_CHARACTER = "\u200B";
+const INVISIBLE_CHARACTER = "-";
 
 async function generateHelpReply(
   guildId: string,
