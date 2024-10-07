@@ -16,9 +16,9 @@ services:
     restart: always
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
-      MYSQL_DATABASE: ${DB_DATABASE}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE:-bottombot}
+      MYSQL_USER: ${DB_USER:-bottombot}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-bottombot}
     ports:
       - ${DB_PORT:-3306}:3306
     volumes:

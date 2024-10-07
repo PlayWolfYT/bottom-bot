@@ -7,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -23,8 +23,8 @@ model Permission {
 model CustomCommand {
   id       String  @id @default(cuid())
   guildId  String
-  name     String
-  response String
+  name     String  @db.VarChar(255)
+  response String  @db.Text
   embed    Boolean @default(false)
 
   @@unique([guildId, name])
@@ -37,7 +37,7 @@ model Reminder {
   messageId    String
   userId       String
   time         DateTime
-  reminderText String
+  reminderText String   @db.Text
 
   @@index([guildId, userId])
 }
@@ -54,7 +54,7 @@ model GuildSettings {
   id       String  @id @default(cuid())
   guildId  String
   timezone String?
-  prefix   String?
+  prefix   String? @db.VarChar(255)
 
   @@unique([guildId])
 }

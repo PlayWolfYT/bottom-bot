@@ -179,6 +179,5 @@ prisma/*.db
 prisma/*.db-journal
 prisma/*.sqlite
 
-# Postgres
-postgres_data/
-core
+# Database
+db_data/
