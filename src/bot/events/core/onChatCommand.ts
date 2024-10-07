@@ -10,11 +10,19 @@ export default {
   event: Events.MessageCreate,
   async execute(client: Client, message: Message) {
     if (!message.guildId) return;
-    const guildSettings = await prisma.guildSettings.findUnique({
+    let guildSettings = await prisma.guildSettings.findUnique({
       where: {
         guildId: message.guildId,
       },
     });
+
+    if (!guildSettings) {
+      guildSettings = await prisma.guildSettings.create({
+        data: {
+          guildId: message.guildId,
+        },
+      });
+    }
 
     const prefix = guildSettings?.prefix || env.BOT_PREFIX || "!";
 

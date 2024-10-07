@@ -15,7 +15,6 @@ async function generateHelpReply(
   guildId: string,
   userId: string,
   replyFunction: ReplyFunction,
-  detailed: boolean,
   guildSettings: GuildSettings
 ): Promise<void> {
   const pagedEmbed = new PagedEmbed<{ name: string; id: string }>(
@@ -44,7 +43,7 @@ async function generateHelpReply(
     },
     userId,
     replyFunction,
-    { itemsPerPage: detailed ? 9 : 25 }
+    { itemsPerPage: 25 }
   );
 
   await pagedEmbed.createPagedEmbed();
@@ -148,7 +147,7 @@ export default {
 async function handleCommand(subcommand: string, args: string[], guildId: string, userId: string, replyFunction: ReplyFunction, guildSettings: GuildSettings) {
   switch (subcommand) {
     case "list":
-      await generateHelpReply(guildId, userId, replyFunction, args[0] === "true", guildSettings);
+      await generateHelpReply(guildId, userId, replyFunction, guildSettings);
       break;
     case "add": {
       if (args.length < 2) {
