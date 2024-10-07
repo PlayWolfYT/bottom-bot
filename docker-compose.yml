@@ -20,7 +20,7 @@ services:
       MYSQL_USER: ${DB_USER:-bottombot}
       MYSQL_PASSWORD: ${DB_PASSWORD:-bottombot}
     ports:
-      - ${DB_PORT:-3306}:3306
+      - ${DB_EXPOSE_PORT:-3306}:3306
     volumes:
       - ./db_data:/var/lib/mysql
     healthcheck:
