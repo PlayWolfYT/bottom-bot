@@ -180,4 +180,5 @@ prisma/*.db-journal
 prisma/*.sqlite
 
 # Postgres
-postgres_data
+postgres_data/
+core
