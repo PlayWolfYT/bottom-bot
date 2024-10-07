@@ -25,7 +25,6 @@ async function generateHelpReply(
         skip: (page - 1) * itemsPerPage,
         take: itemsPerPage,
         select: { name: true, id: true },
-        orderBy: { name: "asc", id: "asc" }
       });
       const totalPages = await prisma.customCommand.count({ where: { guildId } });
       return { items: customCommands, totalPages: Math.ceil(totalPages / itemsPerPage) };
