@@ -181,3 +181,6 @@ prisma/*.sqlite
 
 # Database
 db_data/
+
+# Triggers
+_BOT_TRIGGERS/

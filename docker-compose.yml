@@ -9,6 +9,7 @@ services:
         condition: service_healthy
     volumes:
       - .:/app
+      - ./_BOT_TRIGGERS:/app/_BOT_TRIGGERS
       - /app/node_modules
     command: [ "bun", "run", "start" ]
   db:

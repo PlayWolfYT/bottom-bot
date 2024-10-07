@@ -218,6 +218,29 @@ Make sure to set the following environment variables:
 - `CLIENT_ID`: Your bot's client ID
 - `BOT_PREFIX`: Default prefix for bot commands (optional)
 
+# Bot Triggers
+Some commands or other things can send `triggers` to the host system, which allows you to do things *outside* the bots container.
+
+An example for this is the `update` command, which writes the file `./_BOT_TRIGGERS/TRIGGER_UPDATE`, which you can listen to via a simple bash script.
+
+Example:
+```bash
+#!/bin/bash
+while true; do
+  if [ -f /home/bottombot/_BOT_TRIGGERS/TRIGGER_UPDATE ]; then
+    echo "Bot Update request has been detected. Updating bot"
+
+
+    # Remove the trigger file to avoid repeated execution
+    rm /home/bottombot/_BOT_TRIGGERS/TRIGGER_UPDATE
+
+    # Run the host-side script
+    /home/bottombot/update.sh
+  fi
+  sleep 1  # Check every second
+done
+```
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
