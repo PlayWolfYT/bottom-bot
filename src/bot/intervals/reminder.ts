@@ -18,7 +18,6 @@ export default {
     const reminders = await prisma.reminder.findMany({
       where: {
         time: {
-          gte: now,
           lt: nextCycle,
         },
       },
@@ -36,7 +35,7 @@ export default {
             try {
               const message = await channel.messages.fetch(reminder.messageId);
               await message.reply(
-                `<@${reminder.userId}>, here's your reminder: ${reminder.reminderText}`
+                `<@${reminder.userId}>, here's your reminder: ${reminder.reminderText}${timeUntilReminder < 0 ? "\n-# The reminder was sent with a delay, because the bot was down." : ""}`
               );
             } catch (error) {
               await channel.send(
@@ -54,7 +53,7 @@ export default {
             id: reminder.id,
           },
         });
-      }, timeUntilReminder);
+      }, Math.max(timeUntilReminder, 0));
     }
   },
 } as Interval;

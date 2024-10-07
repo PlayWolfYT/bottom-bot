@@ -34,7 +34,7 @@ model Reminder {
   id           String   @id @default(cuid())
   guildId      String
   channelId    String
-  messageId    String
+  messageId    String   @unique
   userId       String
   time         DateTime
   reminderText String   @db.Text
