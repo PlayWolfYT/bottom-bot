@@ -4,7 +4,7 @@ import Logger from "@utils/logger";
 import type { ReplyFunction } from "@/types";
 import { ActionRowBuilder, EmbedBuilder, ModalBuilder, SlashCommandBuilder, TextInputBuilder, TextInputStyle, type InteractionReplyOptions, type MessageReplyOptions } from "discord.js";
 import { PagedEmbed } from "@bot-utils/PagedEmbed";
-import type { CustomCommand, GuildSettings } from "@prisma/client";
+import type { GuildSettings } from "@prisma/client";
 import { env } from "bun";
 
 const logger = new Logger();

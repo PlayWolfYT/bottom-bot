@@ -43,7 +43,7 @@ export class PagedEmbed<T> {
         this.userId = userId;
         this.itemsPerPage = additionalOptions.itemsPerPage ?? 9;
         this.buttonPrefix = additionalOptions.buttonPrefix ?? crypto.randomBytes(6).toString('hex');
-        this.buttonTimeout = additionalOptions.buttonTimeout ?? 10_000;
+        this.buttonTimeout = additionalOptions.buttonTimeout ?? 30_000;
         this.replyFunction = replyFunction;
         this.message = null;
     }
