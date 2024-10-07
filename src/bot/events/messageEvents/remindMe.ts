@@ -1,8 +1,8 @@
-import { prisma } from "@/database";
-import type { Event } from "@/events/Event";
+import { prisma } from "@db";
+import type { Event } from "@events/Event";
 import * as chrono from "chrono-node";
 import { Events } from "discord.js";
-import Logger from "@/logger";
+import Logger from "@utils/logger";
 const logger = new Logger();
 
 export default {

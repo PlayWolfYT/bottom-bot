@@ -1,8 +1,8 @@
-import type { Command } from "@/commands/Command";
-import { prisma } from "@/database";
-import Logger from "@/logger";
+import type { Command } from "@commands/Command";
+import { prisma } from "@db";
+import Logger from "@utils/logger";
 import type { ReplyFunction } from "@/types";
-import { getTimezone, TIMEZONES } from "@/utils/Timezones";
+import { getTimezone, TIMEZONES } from "@utils/Timezones";
 import { env } from "bun";
 import { ApplicationCommandOptionType, type Channel, Attachment, Role, SlashCommandBuilder, User, ChannelType, type APIRole, type InteractionReplyOptions, type MessageReplyOptions } from "discord.js";
 

@@ -33,13 +33,25 @@
         "src/*"
       ],
       "@commands/*": [
-        "src/commands/*"
+        "src/bot/commands/*"
       ],
       "@events/*": [
-        "src/events/*"
+        "src/bot/events/*"
+      ],
+      "@intervals/*": [
+        "src/bot/intervals/*"
       ],
       "@db": [
         "src/database"
+      ],
+      "@web/*": [
+        "src/web/*"
+      ],
+      "@bot-utils/*": [
+        "src/bot/utils/*"
+      ],
+      "@utils/*": [
+        "src/utils/*"
       ]
     },
   }

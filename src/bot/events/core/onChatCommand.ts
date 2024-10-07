@@ -1,8 +1,8 @@
 import { Client, Events, Message } from "discord.js";
 import type { Event } from "@events/Event";
 import { env } from "bun";
-import Logger from "@/logger";
-import { prisma } from "@/database";
+import Logger from "@utils/logger";
+import { prisma } from "@db";
 
 const logger = new Logger();
 

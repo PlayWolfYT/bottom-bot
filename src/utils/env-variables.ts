@@ -1,4 +1,4 @@
-import Logger from "@/logger";
+import Logger from "@utils/logger";
 import { env } from "bun";
 
 const logger = new Logger();

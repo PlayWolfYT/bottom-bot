@@ -1,7 +1,7 @@
 import { ButtonBuilder, ButtonInteraction, ButtonStyle, Message, ActionRowBuilder, EmbedBuilder } from "discord.js";
 import type { InteractionReplyOptions, MessageCreateOptions, MessageEditOptions } from "discord.js";
-import Logger from "@/logger";
-import { createErrorEmbed } from "@/utils/ErrorEmbed";
+import Logger from "@utils/logger";
+import { createErrorEmbed } from "@bot-utils/ErrorEmbed";
 import type { ReplyFunction } from "@/types";
 import crypto from "crypto";
 

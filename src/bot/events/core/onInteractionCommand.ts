@@ -1,8 +1,8 @@
 import type { Client, Interaction } from "discord.js";
 import type { Event } from "@events/Event";
-import { ChannelType, Events } from "discord.js";
-import Logger from "@/logger";
-import { prisma } from "@/database";
+import { Events } from "discord.js";
+import Logger from "@utils/logger";
+import { prisma } from "@db";
 const logger = new Logger();
 
 export default {

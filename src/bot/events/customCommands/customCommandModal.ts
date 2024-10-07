@@ -1,5 +1,5 @@
-import { prisma } from "@/database";
-import type { Event } from "@/events/Event";
+import { prisma } from "@db";
+import type { Event } from "@events/Event";
 import { Events } from "discord.js";
 
 export default {

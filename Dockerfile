@@ -13,11 +13,14 @@ RUN bun install
 # Install OpenSSL
 RUN apt-get update -y && apt-get install -y openssl
 
-# Copy source code and Prisma schema
-COPY . .
+# Copy prisma schema
+COPY prisma ./prisma
 
 # Generate Prisma client
 RUN bunx prisma generate
+
+# Copy source code
+COPY . .
 
 # Expose port if needed (for the dashboard)
 EXPOSE 8080

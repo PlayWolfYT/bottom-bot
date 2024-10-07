@@ -1,5 +1,5 @@
-import type { Event } from "@/events/Event";
-import Logger from "@/logger";
+import type { Event } from "@events/Event";
+import Logger from "@utils/logger";
 import { Events } from "discord.js";
 
 const logger = new Logger();

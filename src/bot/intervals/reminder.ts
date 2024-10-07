@@ -1,6 +1,6 @@
-import { prisma } from "@/database";
-import type { Interval } from "@/intervals/Interval";
-import Logger from "@/logger";
+import { prisma } from "@db";
+import type { Interval } from "@intervals/Interval";
+import Logger from "@utils/logger";
 import type { Client } from "discord.js";
 
 const logger = new Logger();

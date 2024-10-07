@@ -1,12 +1,12 @@
 import { env } from "bun";
 import { Client, Collection, IntentsBitField } from "discord.js";
-import { isCommand, type Command } from "@commands/Command";
+import { isCommand, type Command } from "@/bot/commands/Command";
 import { readdirSync } from "fs";
-import { validateEnvVariables } from "@/env-variables";
+import { validateEnvVariables } from "@/utils/env-variables";
 import { prisma } from "@db";
 import { isEvent, type Event } from "@events/Event";
-import { isInterval, type Interval } from "@/intervals/Interval";
-import { Logger } from './logger';
+import { isInterval, type Interval } from "@/bot/intervals/Interval";
+import { Logger } from '@/utils/logger';
 import chalk from "chalk";
 
 // Constants and Configurations
@@ -45,7 +45,7 @@ function createClient() {
 // Loading Functions
 async function loadCommands() {
   commandLogger.debug('Searching for command files...');
-  const commandFiles = readdirSync("./src/commands", {
+  const commandFiles = readdirSync("./src/bot/commands", {
     recursive: true,
   }).filter(
     (file) =>
@@ -57,7 +57,7 @@ async function loadCommands() {
 
   client.commands.clear();
   for (const file of commandFiles) {
-    const command: Command | any = require(`./commands/${file}`).default;
+    const command: Command | any = require(`./bot/commands/${file}`).default;
 
     if (!isCommand(command)) {
       commandLogger.warn(`The file '${chalk.italic.cyan(file)}' in the '${chalk.italic.cyan('commands')} directory is not a valid command.`);
@@ -74,7 +74,7 @@ async function loadCommands() {
 
 async function loadEvents() {
   eventLogger.debug('Searching for event files...');
-  const eventFiles = readdirSync("./src/events", {
+  const eventFiles = readdirSync("./src/bot/events", {
     recursive: true,
   }).filter(
     (file) =>
@@ -91,7 +91,7 @@ async function loadEvents() {
   client.events.clear();
 
   for (const file of eventFiles) {
-    const event: Event | any = require(`./events/${file}`).default;
+    const event: Event | any = require(`./bot/events/${file}`).default;
 
     if (!isEvent(event)) {
       eventLogger.warn(`The file '${chalk.italic.cyan(file)}' in the '${chalk.italic.cyan('events')} directory is not a valid event.`);
@@ -121,7 +121,7 @@ async function loadEvents() {
 
 async function loadIntervals() {
   intervalLogger.debug('Searching for interval files...');
-  const intervalFiles = readdirSync("./src/intervals", {
+  const intervalFiles = readdirSync("./src/bot/intervals", {
     recursive: true,
   }).filter(
     (file) =>
@@ -133,7 +133,7 @@ async function loadIntervals() {
 
   client.intervals.clear();
   for (const file of intervalFiles) {
-    const interval: Interval | any = require(`./intervals/${file}`).default;
+    const interval: Interval | any = require(`./bot/intervals/${file}`).default;
 
     if (!isInterval(interval)) {
       intervalLogger.warn(`The file '${chalk.italic.cyan(file)}' in the '${chalk.italic.cyan('intervals')} directory is not a valid interval.`);

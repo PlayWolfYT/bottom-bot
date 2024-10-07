@@ -3,9 +3,9 @@ import { Routes } from "discord-api-types/v10";
 import { readdirSync } from "fs";
 import { isCommand, type Command } from "@commands/Command";
 import { env } from "bun";
-import { validateEnvVariables } from "@/env-variables";
+import { validateEnvVariables } from "@utils/env-variables";
 import { type RESTPostAPIChatInputApplicationCommandsJSONBody } from "discord.js";
-import Logger from "@/logger";
+import Logger from "@utils/logger";
 
 validateEnvVariables();
 
@@ -14,7 +14,7 @@ const logger = new Logger();
 const commands: RESTPostAPIChatInputApplicationCommandsJSONBody[] = [];
 
 // Updated command loading logic
-const commandFiles = readdirSync("./src/commands", {
+const commandFiles = readdirSync("./src/bot/commands", {
   recursive: true,
 }).filter(
   (file) =>
@@ -23,7 +23,7 @@ const commandFiles = readdirSync("./src/commands", {
 );
 
 for (const file of commandFiles) {
-  const command: Command | any = require(`./commands/${file}`).default;
+  const command: Command | any = require(`./bot/commands/${file}`).default;
 
   if (!isCommand(command)) {
     logger.error(`Command ${file} is not a valid command.`);

@@ -1,6 +1,6 @@
-import { prisma } from "@/database";
-import type { Event } from "@/events/Event";
-import Logger from "@/logger";
+import { prisma } from "@db";
+import type { Event } from "@events/Event";
+import Logger from "@utils/logger";
 import { env } from "bun";
 import { ChannelType, EmbedBuilder, Events, Message, PermissionsBitField, TextChannel } from "discord.js";
 

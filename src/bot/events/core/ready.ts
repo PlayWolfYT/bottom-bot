@@ -1,6 +1,6 @@
 import { Client, Events } from "discord.js";
 import type { Event } from "@events/Event";
-import Logger from "@/logger";
+import Logger from "@utils/logger";
 
 const logger = new Logger();
 
