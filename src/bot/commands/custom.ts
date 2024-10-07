@@ -36,7 +36,7 @@ async function generateHelpReply(
       for (const command of displayedCommands) {
         embed.addFields({
           name: command.name.slice(0, 256 - command.id.length - 3) + ` (${command.id})`,
-          value: command.response.replaceAll("https://", "htt" + INVISIBLE_CHARACTER + "ps://").slice(0, 1024),
+          value: command.response.replaceAll("https://", "htt" + INVISIBLE_CHARACTER + "ps://").slice(0, 100) + (command.response.length > 100 ? '...' : ''),
           inline: true,
         });
       }
