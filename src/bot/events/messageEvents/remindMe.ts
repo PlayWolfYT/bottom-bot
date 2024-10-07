@@ -57,17 +57,18 @@ export default {
         reminderText = reminderText.replace(result.text, "");
       });
 
+      // Clean up the reminder text
+      reminderText = reminderText.trim();
+
       // Detect and store the prefix ("to" or "that") if present
       let prefixMatch = reminderText.match(/^(to|that)\s+/i);
       let prefix = "to"; // Default prefix
+
       if (prefixMatch) {
         prefix = prefixMatch[1].toLowerCase();
         // Remove the prefix from the reminder text
         reminderText = reminderText.replace(/^(to|that)\s+/i, "").trim();
       }
-
-      // Clean up the reminder text
-      reminderText = reminderText.trim();
 
       if (!reminderText) {
         message.reply(
