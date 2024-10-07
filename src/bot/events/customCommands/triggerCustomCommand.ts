@@ -133,7 +133,11 @@ export default {
                 // Send follow-up messages if any
                 if (context.followUps && context.followUps.length > 0) {
                     for (const followUp of context.followUps) {
-                        await message.channel.send(followUp);
+                        // Trim the follow up and make sure its not empty
+                        const trimmedFollowUp = followUp.trim();
+                        if (trimmedFollowUp.length > 0) {
+                            await message.channel.send(trimmedFollowUp);
+                        }
                     }
                 }
             } else {
@@ -266,7 +270,9 @@ async function parseResponse(text: string, context: ParseContext): Promise<strin
                 break;
             default: {
                 // Variable replacement
+                logger.debug(`Custom command triggered variable replacement for '${instructionType}'`);
                 let variableValue = getVariableValue(instructionType, context);
+                logger.debug(`Custom command triggered variable replacement for '${instructionType}' with value '${variableValue}'`);
                 if (variableValue instanceof Error) {
                     // If we get an error, the variable was not found, this could mean that the user just forgot to escape the brackets
                     // So we should just return the original instruction text
@@ -307,8 +313,14 @@ function getVariableValue(variablePath: string, context: ParseContext): any {
     let value = context.variables;
 
     for (const part of pathParts) {
+        logger.debug(`Part: ${part}`);
         if (value && typeof value === 'object' && part in value) {
             value = value[part];
+            logger.debug(`Found part in value`);
+            logger.debug(`Value: ${JSON.stringify(value, null, 2)}`);
+        } else if (!(part in value)) {
+            logger.debug(`Could not find part ${part} in value ${JSON.stringify(value, null, 2)}`);
+            return new Error(`Could not find variable ${variablePath}`);
         } else {
             // If the part is an array, we should be able to use things like .length, .join(' '), etc.
             if (Array.isArray(value)) {
@@ -321,7 +333,6 @@ function getVariableValue(variablePath: string, context: ParseContext): any {
                     return value.join(joinString);
                 }
             }
-            return new Error(`Could not find variable ${variablePath}`);
         }
     }
 
