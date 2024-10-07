@@ -14,37 +14,38 @@ const INVISIBLE_CHARACTER = "-";
 async function generateHelpReply(
   guildId: string,
   userId: string,
-  replyFunction: ReplyFunction
+  replyFunction: ReplyFunction,
+  detailed: boolean,
+  guildSettings: GuildSettings
 ): Promise<void> {
-  const pagedEmbed = new PagedEmbed<CustomCommand>(
+  const pagedEmbed = new PagedEmbed<{ name: string; id: string }>(
     async (page, itemsPerPage) => {
       const customCommands = await prisma.customCommand.findMany({
         where: { guildId: guildId },
         skip: (page - 1) * itemsPerPage,
         take: itemsPerPage,
+        select: { name: true, id: true },
+        orderBy: { name: "asc", id: "asc" }
       });
       const totalPages = await prisma.customCommand.count({ where: { guildId } });
       return { items: customCommands, totalPages: Math.ceil(totalPages / itemsPerPage) };
     },
-    (displayedCommands: CustomCommand[], currentPage: number, totalPages: number) => {
+    (displayedCommands: { name: string; id: string }[], currentPage: number, totalPages: number) => {
+      let description = `Custom commands are commands that you can add to the bot.\n${displayedCommands.length} commands found.\nTo get more info on a command, use the \`${guildSettings.prefix ?? env.BOT_PREFIX}custom info [name / uuid]\` command.`;
       const embed = new EmbedBuilder()
         .setTitle("Custom Commands")
-        .setDescription(`Custom commands are commands that you can add to the bot.\n${displayedCommands.length} commands found.`)
         .setColor("#f542dd")
         .setFooter({ text: `Page ${currentPage} • ${totalPages} pages available` });
 
-      for (const command of displayedCommands) {
-        embed.addFields({
-          name: command.name.slice(0, 256 - command.id.length - 3) + ` (${command.id})`,
-          value: command.response.replaceAll("https://", "htt" + INVISIBLE_CHARACTER + "ps://").slice(0, 100) + (command.response.length > 100 ? '...' : ''),
-          inline: true,
-        });
-      }
+      description += displayedCommands.map(command => `\n${guildSettings.prefix ?? env.BOT_PREFIX}${command.name} • (ID: ${command.id})`).join('');
+
+      embed.setDescription(description);
 
       return embed;
     },
     userId,
     replyFunction,
+    { itemsPerPage: detailed ? 9 : 25 }
   );
 
   await pagedEmbed.createPagedEmbed();
@@ -67,6 +68,8 @@ export default {
 
     switch (subcommand) {
       case "list":
+        const detailed = interaction.options.getBoolean("detailed") ?? false;
+        args = [detailed ? "true" : "false"];
         break;
       case "add":
         if (!interaction.options.getString("name") || !interaction.options.getString("response")) {
@@ -113,7 +116,7 @@ export default {
     .setName("custom")
     .setDescription("Custom commands")
     .addSubcommand((subcommand) =>
-      subcommand.setName("list").setDescription("List custom commands")
+      subcommand.setName("list").setDescription("List custom commands").addBooleanOption((option) => option.setName('detailed').setDescription('Show detailed information about each command'))
     )
     .addSubcommand((subcommand) =>
       subcommand.setName("add").setDescription("Add a custom command")
@@ -146,7 +149,7 @@ export default {
 async function handleCommand(subcommand: string, args: string[], guildId: string, userId: string, replyFunction: ReplyFunction, guildSettings: GuildSettings) {
   switch (subcommand) {
     case "list":
-      await generateHelpReply(guildId, userId, replyFunction);
+      await generateHelpReply(guildId, userId, replyFunction, args[0] === "true", guildSettings);
       break;
     case "add": {
       if (args.length < 2) {
@@ -206,8 +209,33 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
       await replyFunction({ content: "", embeds: [new EmbedBuilder().setTitle("Custom Command Edited").setDescription(`Command **'${customCommand.name}'** with response **'${customCommand.response}'** has been edited. (ID: ${customCommand.id})`).setColor("#00ff00")] });
       break;
     }
+    case "info": {
+      if (args.length < 1) {
+        await replyFunction({ content: `Usage: ${guildSettings.prefix ?? env.BOT_PREFIX}custom info [name / uuid]` });
+        return;
+      }
+      const identifier = args[0];
+
+      const customCommand = await prisma.customCommand.findFirst({ where: { OR: [{ name: identifier }, { id: identifier }] } });
+      if (!customCommand) {
+        await replyFunction({ content: `Couldnt find a command with ID or name **'${identifier}'**` });
+        return;
+      }
+
+      await replyFunction({
+        content: "",
+        embeds: [
+          new EmbedBuilder()
+            .setTitle("Custom Command Info")
+            .setDescription(`**Name:** ${customCommand.name}\n**ID:** ${customCommand.id}\n**Response:**\n${customCommand.response.replaceAll("https://", "htt" + INVISIBLE_CHARACTER + "ps://")}`)
+            .setColor("#0000ff")
+            .setFooter({ text: `Use ${guildSettings.prefix ?? env.BOT_PREFIX}custom edit [name / uuid] [new response] to edit this command.` })
+        ]
+      });
+      break;
+    }
     default:
-      await replyFunction({ content: `Invalid subcommand. Use ${guildSettings.prefix ?? env.BOT_PREFIX}custom (list|add|remove|edit)` });
+      await replyFunction({ content: `Invalid subcommand. Use ${guildSettings.prefix ?? env.BOT_PREFIX}custom (list|add|remove|edit|info)` });
       break;
   }
 }

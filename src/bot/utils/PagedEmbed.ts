@@ -32,16 +32,18 @@ export class PagedEmbed<T> {
         embedGenerator: EmbedGeneratorWithTotalPages<T> | EmbedGeneratorWithHasNextPage<T>,
         userId: string,
         replyFunction: ReplyFunction,
-        itemsPerPage: number = 9,
-        buttonPrefix: string = crypto.randomBytes(6).toString('hex'),
-        buttonTimeout: number = 10_000,
+        additionalOptions: {
+            itemsPerPage?: number,
+            buttonPrefix?: string,
+            buttonTimeout?: number,
+        }
     ) {
         this.fetchItems = fetchItems;
         this.embedGenerator = embedGenerator;
         this.userId = userId;
-        this.itemsPerPage = itemsPerPage;
-        this.buttonPrefix = buttonPrefix;
-        this.buttonTimeout = buttonTimeout;
+        this.itemsPerPage = additionalOptions.itemsPerPage ?? 9;
+        this.buttonPrefix = additionalOptions.buttonPrefix ?? crypto.randomBytes(6).toString('hex');
+        this.buttonTimeout = additionalOptions.buttonTimeout ?? 10_000;
         this.replyFunction = replyFunction;
         this.message = null;
     }
