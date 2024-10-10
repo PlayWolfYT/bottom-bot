@@ -197,6 +197,7 @@ async function parseResponse(text: string, context: ParseContext): Promise<strin
 
         // Check if instruction is undefined, if so, we skipped it (probably because of an if statement)
         if (instruction === undefined) {
+            logger.debug("Skipped an instruction on index " + i)
             continue;
         }
 
@@ -214,14 +215,13 @@ async function parseResponse(text: string, context: ParseContext): Promise<strin
         switch (instructionType) {
             case 'if':
                 {
-                    const codeToEvaluate = instructionValues.join(';');
-
+                    const codeToEvaluate = 'return ' + instructionValues.join(';') + ';';
                     const sandbox = new Sandbox();
                     const execCode = sandbox.compile(codeToEvaluate);
                     const codeRes = execCode({ ...context.variables }, context).run();
 
                     const { fiIndex, elseIndex } = getNextElseAndFiStatements(instructions, response, i);
-                    const fiInstr = instructions[fiIndex];
+                    let fiInstr = instructions[fiIndex];
 
                     if (fiIndex == -1 || fiInstr === undefined) {
                         throw new Error(`Could not find correspoding FI-Instruction for IF-Instruction with index ${i}`)
@@ -231,45 +231,114 @@ async function parseResponse(text: string, context: ParseContext): Promise<strin
                     const elseInstr = instructions[elseIndex];
 
                     if (codeRes) {
-
-                        if (!elseInstr) break;
+                        if (!elseInstr) {
+                            logger.debug(`No else instruction found`);
+                            break;
+                        }
 
                         let replaceStart = elseInstr.start;
                         let replaceEnd = fiInstr.end;
-
-                        for (let j = elseIndex; j < fiIndex; j++) {
-                            instructions[j] = undefined;
-                        }
 
                         // Update the response
                         response = response.slice(0, replaceStart) + response.slice(replaceEnd);
 
                         // Update all instructions that are after the FI
                         for (let j = fiIndex + 1; j < instructions.length; j++) {
-                            const updatedInstruction = instructions[j];
+                            let updatedInstruction = instructions[j];
                             if (!updatedInstruction) continue;
-                            const textSizeDiff = replaceEnd - replaceStart;
+                            const textSizeDiff = replaceStart - replaceEnd;
+
+                            // Check if the instruction was removed
+                            if (updatedInstruction.start > replaceStart && updatedInstruction.start < replaceEnd) {
+                                updatedInstruction = undefined;
+                                continue;
+                            }
 
                             // Only change the start if the instruction starts behind us
-                            if (updatedInstruction.start > instruction.start)
+                            if (updatedInstruction.start > instruction.start) {
                                 updatedInstruction.start += textSizeDiff;
+                            }
                             updatedInstruction.end += textSizeDiff;
                             instructions[j] = updatedInstruction;
+                        }
+
+                        for (let j = elseIndex; j < fiIndex; j++) {
+                            instructions[j] = undefined;
                         }
                     } else {
                         // Remove all instructions until the 'else'
                         // Remove the 'fi'
                         if (elseInstr) {
-                            let replaceStart = instruction.start;
+                            let replaceStart = instruction.end;
                             let replaceEnd = elseInstr.end;
+
+                            // Update the response
+                            response = response.slice(0, replaceStart) + response.slice(replaceEnd);
+
+                            // Update all instructions that are after the FI
+                            for (let j = i + 1; j < instructions.length; j++) {
+                                let updatedInstruction = instructions[j];
+                                if (!updatedInstruction) continue;
+                                const textSizeDiff = replaceStart - replaceEnd;
+
+                                // Check if the instruction was removed
+                                if (updatedInstruction.start > replaceStart && updatedInstruction.start < replaceEnd) {
+                                    updatedInstruction = undefined;
+                                    continue;
+                                }
+                                // Only change the start if the instruction starts behind us
+                                if (updatedInstruction.start > instruction.start)
+                                    updatedInstruction.start += textSizeDiff;
+                                updatedInstruction.end += textSizeDiff;
+                                instructions[j] = updatedInstruction;
+                            }
+
+                            fiInstr = instructions[fiIndex]!
+                            replaceStart = fiInstr.start;
+                            replaceEnd = fiInstr.end;
+
                             // Update the response
                             response = response.slice(0, replaceStart) + response.slice(replaceEnd);
 
                             // Update all instructions that are after the FI
                             for (let j = fiIndex + 1; j < instructions.length; j++) {
-                                const updatedInstruction = instructions[j];
+                                let updatedInstruction = instructions[j];
                                 if (!updatedInstruction) continue;
-                                const textSizeDiff = replaceEnd - replaceStart;
+                                const textSizeDiff = replaceStart - replaceEnd;
+
+
+                                // Check if the instruction was removed
+                                if (updatedInstruction.start > replaceStart && updatedInstruction.start < replaceEnd) {
+                                    updatedInstruction = undefined;
+                                    continue;
+                                }
+
+                                // Only change the start if the instruction starts behind us
+                                if (updatedInstruction.start > instruction.start)
+                                    updatedInstruction.start += textSizeDiff;
+                                updatedInstruction.end += textSizeDiff;
+                                instructions[j] = updatedInstruction;
+                            }
+                        } else {
+                            fiInstr = instructions[fiIndex]!
+                            let replaceStart = instruction.end; // The IF-Statement itself gets replaced later
+                            let replaceEnd = fiInstr.end;
+
+                            // Update the response
+                            response = response.slice(0, replaceStart) + response.slice(replaceEnd);
+
+                            // Update all instructions that are after the FI
+                            for (let j = fiIndex + 1; j < instructions.length; j++) {
+                                let updatedInstruction = instructions[j];
+                                if (!updatedInstruction) continue;
+                                const textSizeDiff = replaceStart - replaceEnd;
+
+
+                                // Check if the instruction was removed
+                                if (updatedInstruction.start > replaceStart && updatedInstruction.start < replaceEnd) {
+                                    updatedInstruction = undefined;
+                                    continue;
+                                }
 
                                 // Only change the start if the instruction starts behind us
                                 if (updatedInstruction.start > instruction.start)
@@ -278,33 +347,14 @@ async function parseResponse(text: string, context: ParseContext): Promise<strin
                                 instructions[j] = updatedInstruction;
                             }
                         }
-
-                        let replaceStart = fiInstr.start;
-                        let replaceEnd = fiInstr.end;
-
-                        // Update the response
-                        response = response.slice(0, replaceStart) + response.slice(replaceEnd);
-
-                        // Update all instructions that are after the FI
-                        for (let j = fiIndex + 1; j < instructions.length; j++) {
-                            const updatedInstruction = instructions[j];
-                            if (!updatedInstruction) continue;
-                            const textSizeDiff = replaceEnd - replaceStart;
-
-                            // Only change the start if the instruction starts behind us
-                            if (updatedInstruction.start > instruction.start)
-                                updatedInstruction.start += textSizeDiff;
-                            updatedInstruction.end += textSizeDiff;
-                            instructions[j] = updatedInstruction;
-                        }
                     }
                     break;
                 }
             case 'else':
-                logger.debug(`Unhandled else? ${instruction.start} - ${instruction.end} in '${response}'`)
+                logger.warn(`Unhandled else? ${instruction.start} - ${instruction.end} in '${response}'`)
                 break;
             case 'fi':
-                logger.debug(`Unhandled fi? ${instruction.start} - ${instruction.end} in '${response}'`)
+                logger.warn(`Unhandled fi? ${instruction.start} - ${instruction.end} in '${response}'`)
                 break;
             case 'set':
                 {
@@ -505,20 +555,24 @@ function getNextElseAndFiStatements(instructions: InstructionArray, response: st
     instSearch: for (let j = currentIdx + 1; j < instructions.length; j++) {
         const inst = instructions[j];
         if (!inst) continue;
-        const instText = response.slice(inst.start, inst.end).slice(1, -1);
+        const instText = response.slice(inst.start, inst.end).slice(1, -1).split(";")[0];
 
         switch (instText) {
             case 'if':
                 ifCount++;
                 break;
             case 'else':
-                if (ifCount == 0) elseIndex = j;
+                if (ifCount == 0) {
+                    elseIndex = j;
+                }
                 break;
             case 'fi':
                 if (ifCount == 0) {
                     fiIndex = j;
                     break instSearch;
-                } else ifCount--;
+                } else {
+                    ifCount--;
+                }
                 break;
         }
     }
