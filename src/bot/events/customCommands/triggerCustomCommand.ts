@@ -201,12 +201,12 @@ async function parseResponse(text: string, context: ParseContext): Promise<strin
         const instructionValues = instructionParts.slice(1);
 
         let replacement = '';
+        logger.debug(`HANDLING INSTRUCTION: ${instructionText.substring(0, 40)} (index ${instruction.start}, ${instruction.end})...`)
         // We are executing some kind of instruction
         switch (instructionType) {
             case 'set':
-                const setParts = instructionValues[0].split('=');
-                const variableName = setParts[0];
-                const variableValue = setParts[1];
+                const variableName = instructionValues[0];
+                const variableValue = instructionValues[1];
 
                 context.variables[variableName] = variableValue;
                 break;
@@ -272,7 +272,6 @@ async function parseResponse(text: string, context: ParseContext): Promise<strin
                 // Variable replacement
                 logger.debug(`Custom command triggered variable replacement for '${instructionType}'`);
                 let variableValue = getVariableValue(instructionType, context);
-                logger.debug(`Custom command triggered variable replacement for '${instructionType}' with value '${variableValue}'`);
                 if (variableValue instanceof Error) {
                     // If we get an error, the variable was not found, this could mean that the user just forgot to escape the brackets
                     // So we should just return the original instruction text
@@ -293,10 +292,11 @@ async function parseResponse(text: string, context: ParseContext): Promise<strin
         // Update all instructions that are after the current instruction
         for (let j = i + 1; j < instructions.length; j++) {
             const updatedInstruction = instructions[j];
-            if (updatedInstruction.start > instruction.start) {
-                updatedInstruction.start += replacement.length - instructionText.length;
-                updatedInstruction.end += replacement.length - instructionText.length;
-            }
+            updatedInstruction.start += replacement.length - instructionText.length;
+            updatedInstruction.end += replacement.length - instructionText.length;
+
+            updatedInstruction.start = Math.max(0, updatedInstruction.start);
+            updatedInstruction.end = Math.min(text.length, updatedInstruction.end)
             instructions[j] = updatedInstruction;
         }
     }
@@ -313,13 +313,12 @@ function getVariableValue(variablePath: string, context: ParseContext): any {
     let value = context.variables;
 
     for (const part of pathParts) {
-        logger.debug(`Part: ${part}`);
         if (value && typeof value === 'object' && part in value) {
             value = value[part];
             logger.debug(`Found part in value`);
-            logger.debug(`Value: ${JSON.stringify(value, null, 2)}`);
+            logger.debug(`Value: ${JSON.stringify(value, null, 2).substring(0, 50)}`);
         } else if (!(part in value)) {
-            logger.debug(`Could not find part ${part} in value ${JSON.stringify(value, null, 2)}`);
+            logger.debug(`Could not find part ${part} in value ${JSON.stringify(value, null, 2).substring(0, 50)}`);
             return new Error(`Could not find variable ${variablePath}`);
         } else {
             // If the part is an array, we should be able to use things like .length, .join(' '), etc.
