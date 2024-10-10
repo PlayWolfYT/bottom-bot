@@ -1,5 +1,6 @@
 import { prisma } from "@db";
 import type { Event } from "@events/Event";
+import Sandbox from "@nyariv/sandboxjs";
 import Logger from "@utils/logger";
 import { env } from "bun";
 import { ChannelType, EmbedBuilder, Events, Message, PermissionsBitField, TextChannel } from "discord.js";
@@ -12,6 +13,8 @@ interface ParseContext {
     variables: Record<string, any>;
     followUps: string[];
 }
+
+type InstructionArray = ({ start: number; end: number } | undefined)[]
 
 
 const logger = new Logger();
@@ -160,7 +163,7 @@ export default {
 
 async function parseResponse(text: string, context: ParseContext): Promise<string> {
     let response = text;
-    let instructions: { start: number; end: number }[] = [];
+    let instructions: InstructionArray = [];
     let instructionStarts: number[] = [];
 
     for (let index = 0; index < text.length; index++) {
@@ -192,6 +195,11 @@ async function parseResponse(text: string, context: ParseContext): Promise<strin
     for (let i = 0; i < instructions.length; i++) {
         const instruction = instructions[i];
 
+        // Check if instruction is undefined, if so, we skipped it (probably because of an if statement)
+        if (instruction === undefined) {
+            continue;
+        }
+
         // Grab the instruction from the text
         const instructionText = response.slice(instruction.start, instruction.end);
 
@@ -204,70 +212,177 @@ async function parseResponse(text: string, context: ParseContext): Promise<strin
         logger.debug(`HANDLING INSTRUCTION: ${instructionText.substring(0, 40)} (index ${instruction.start}, ${instruction.end})...`)
         // We are executing some kind of instruction
         switch (instructionType) {
-            case 'set':
-                const variableName = instructionValues[0];
-                const variableValue = instructionValues[1];
+            case 'if':
+                {
+                    const codeToEvaluate = instructionValues.join(';');
 
-                context.variables[variableName] = variableValue;
-                break;
-            case 'random':
-                const randomMin = parseInt(instructionValues[0]);
-                const randomMax = parseInt(instructionValues[1]);
+                    const sandbox = new Sandbox();
+                    const execCode = sandbox.compile(codeToEvaluate);
+                    const codeRes = execCode({ ...context.variables }, context).run();
 
-                const randomNumber = Math.floor(Math.random() * (randomMax - randomMin + 1)) + randomMin;
-                replacement = randomNumber.toString();
-                break;
-            case 'choose':
-                const randomItem = instructionValues[Math.floor(Math.random() * instructionValues.length)];
-                replacement = randomItem;
-                break;
-            case 'require':
-                const requirement = instructionValues[0];
-                evaluateRequirement(requirement, context);
-                break;
-            case 'not':
-                const notRequirement = instructionValues[0];
-                try {
-                    evaluateRequirement(notRequirement, context);
-                    // If the evaluation doesn't throw, we passed, which means we should not continue
-                    throw new Error('Requirement not met');
-                } catch (error) {
-                    // If the evaluation throws, the requirement was not met, so we are good to continue
-                    continue;
+                    const { fiIndex, elseIndex } = getNextElseAndFiStatements(instructions, response, i);
+                    const fiInstr = instructions[fiIndex];
+
+                    if (fiIndex == -1 || fiInstr === undefined) {
+                        throw new Error(`Could not find correspoding FI-Instruction for IF-Instruction with index ${i}`)
+                    }
+
+                    // Scrap everything from the else block
+                    const elseInstr = instructions[elseIndex];
+
+                    if (codeRes) {
+
+                        if (!elseInstr) break;
+
+                        let replaceStart = elseInstr.start;
+                        let replaceEnd = fiInstr.end;
+
+                        for (let j = elseIndex; j < fiIndex; j++) {
+                            instructions[j] = undefined;
+                        }
+
+                        // Update the response
+                        response = response.slice(0, replaceStart) + response.slice(replaceEnd);
+
+                        // Update all instructions that are after the FI
+                        for (let j = fiIndex + 1; j < instructions.length; j++) {
+                            const updatedInstruction = instructions[j];
+                            if (!updatedInstruction) continue;
+                            const textSizeDiff = replaceEnd - replaceStart;
+
+                            // Only change the start if the instruction starts behind us
+                            if (updatedInstruction.start > instruction.start)
+                                updatedInstruction.start += textSizeDiff;
+                            updatedInstruction.end += textSizeDiff;
+                            instructions[j] = updatedInstruction;
+                        }
+                    } else {
+                        // Remove all instructions until the 'else'
+                        // Remove the 'fi'
+                        if (elseInstr) {
+                            let replaceStart = instruction.start;
+                            let replaceEnd = elseInstr.end;
+                            // Update the response
+                            response = response.slice(0, replaceStart) + response.slice(replaceEnd);
+
+                            // Update all instructions that are after the FI
+                            for (let j = fiIndex + 1; j < instructions.length; j++) {
+                                const updatedInstruction = instructions[j];
+                                if (!updatedInstruction) continue;
+                                const textSizeDiff = replaceEnd - replaceStart;
+
+                                // Only change the start if the instruction starts behind us
+                                if (updatedInstruction.start > instruction.start)
+                                    updatedInstruction.start += textSizeDiff;
+                                updatedInstruction.end += textSizeDiff;
+                                instructions[j] = updatedInstruction;
+                            }
+                        }
+
+                        let replaceStart = fiInstr.start;
+                        let replaceEnd = fiInstr.end;
+
+                        // Update the response
+                        response = response.slice(0, replaceStart) + response.slice(replaceEnd);
+
+                        // Update all instructions that are after the FI
+                        for (let j = fiIndex + 1; j < instructions.length; j++) {
+                            const updatedInstruction = instructions[j];
+                            if (!updatedInstruction) continue;
+                            const textSizeDiff = replaceEnd - replaceStart;
+
+                            // Only change the start if the instruction starts behind us
+                            if (updatedInstruction.start > instruction.start)
+                                updatedInstruction.start += textSizeDiff;
+                            updatedInstruction.end += textSizeDiff;
+                            instructions[j] = updatedInstruction;
+                        }
+                    }
+                    break;
                 }
+            case 'else':
+                logger.debug(`Unhandled else? ${instruction.start} - ${instruction.end} in '${response}'`)
                 break;
-            case 'followup':
+            case 'fi':
+                logger.debug(`Unhandled fi? ${instruction.start} - ${instruction.end} in '${response}'`)
+                break;
+            case 'set':
+                {
+                    const variableName = instructionValues[0];
+                    const variableValue = instructionValues[1];
+
+                    context.variables[variableName] = variableValue;
+                    break;
+                }
+            case 'random':
+                {
+                    const randomMin = parseInt(instructionValues[0]);
+                    const randomMax = parseInt(instructionValues[1]);
+
+                    const randomNumber = Math.floor(Math.random() * (randomMax - randomMin + 1)) + randomMin;
+                    replacement = randomNumber.toString();
+                    break;
+                }
+            case 'choose':
+                {
+                    const randomItem = instructionValues[Math.floor(Math.random() * instructionValues.length)];
+                    replacement = randomItem;
+                    break;
+                }
+            case 'require':
+                {
+                    const requirement = instructionValues[0];
+                    evaluateRequirement(requirement, context);
+                    break;
+                }
+            case 'not':
+                {
+                    const notRequirement = instructionValues[0];
+                    try {
+                        evaluateRequirement(notRequirement, context);
+                        // If the evaluation doesn't throw, we passed, which means we should not continue
+                        throw new Error('Requirement not met');
+                    } catch (error) {
+                        // If the evaluation throws, the requirement was not met, so we are good to continue
+                        continue;
+                    }
+                    break;
+                }
+            case 'followup': {
                 context.followUps.push(instructionValues.join(';'));
                 break;
+            }
             case 'webrequest':
-                const outputVariable = instructionValues[0];
-                const url = instructionValues[1];
-                const method = instructionValues[2] || 'GET';
-                let body = null;
-                if (instructionValues.length > 3) {
-                    // If the body is set, we should parse it as JSON. It could potentially start with '\{' and end with '\}', so we should replace those with '{' and '}'
-                    body = instructionValues[3].replace(/\\\{/g, '{').replace(/\\}/g, '}').replace(/\\\[/g, '[').replace(/\\\]/g, ']');
-                    body = JSON.parse(body);
+                {
+                    const outputVariable = instructionValues[0];
+                    const url = instructionValues[1];
+                    const method = instructionValues[2] || 'GET';
+                    let body = null;
+                    if (instructionValues.length > 3) {
+                        // If the body is set, we should parse it as JSON. It could potentially start with '\{' and end with '\}', so we should replace those with '{' and '}'
+                        body = instructionValues[3].replace(/\\\{/g, '{').replace(/\\}/g, '}').replace(/\\\[/g, '[').replace(/\\\]/g, ']');
+                        body = JSON.parse(body);
+                    }
+
+                    logger.debug(`Custom command triggered web request to '${url}' with method '${method}' and body '${body}'. Output to variable '${outputVariable}'`);
+
+                    const response = await fetch(url, {
+                        method: method,
+                        body: body,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`Failed to fetch data from ${url}: ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+                    context.variables[outputVariable] = data;
+                    break;
                 }
-
-                logger.debug(`Custom command triggered web request to '${url}' with method '${method}' and body '${body}'. Output to variable '${outputVariable}'`);
-
-                const response = await fetch(url, {
-                    method: method,
-                    body: body,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json',
-                    },
-                });
-
-                if (!response.ok) {
-                    throw new Error(`Failed to fetch data from ${url}: ${response.statusText}`);
-                }
-
-                const data = await response.json();
-                context.variables[outputVariable] = data;
-                break;
             default: {
                 // Variable replacement
                 logger.debug(`Custom command triggered variable replacement for '${instructionType}'`);
@@ -292,6 +407,7 @@ async function parseResponse(text: string, context: ParseContext): Promise<strin
         // Update all instructions that are after the current instruction
         for (let j = i + 1; j < instructions.length; j++) {
             const updatedInstruction = instructions[j];
+            if (!updatedInstruction) continue;
             const textSizeDiff = replacement.length - instructionText.length;
 
             // Only change the start if the instruction starts behind us
@@ -377,4 +493,35 @@ function evaluateRequirement(requirement: string, context: ParseContext): boolea
     }
 
     return true;
+}
+
+function getNextElseAndFiStatements(instructions: InstructionArray, response: string, currentIdx: number) {
+    let ifCount = 0;
+    // Loop through the rest of the instructions, and check for the corresponding `else` and `fi`
+
+    let elseIndex = -1;
+    let fiIndex = -1;
+
+    instSearch: for (let j = currentIdx + 1; j < instructions.length; j++) {
+        const inst = instructions[j];
+        if (!inst) continue;
+        const instText = response.slice(inst.start, inst.end).slice(1, -1);
+
+        switch (instText) {
+            case 'if':
+                ifCount++;
+                break;
+            case 'else':
+                if (ifCount == 0) elseIndex = j;
+                break;
+            case 'fi':
+                if (ifCount == 0) {
+                    fiIndex = j;
+                    break instSearch;
+                } else ifCount--;
+                break;
+        }
+    }
+
+    return { fiIndex, elseIndex };
 }
