@@ -292,11 +292,12 @@ async function parseResponse(text: string, context: ParseContext): Promise<strin
         // Update all instructions that are after the current instruction
         for (let j = i + 1; j < instructions.length; j++) {
             const updatedInstruction = instructions[j];
-            updatedInstruction.start += replacement.length - instructionText.length;
-            updatedInstruction.end += replacement.length - instructionText.length;
+            const textSizeDiff = replacement.length - instructionText.length;
 
-            updatedInstruction.start = Math.max(0, updatedInstruction.start);
-            updatedInstruction.end = Math.min(text.length, updatedInstruction.end)
+            // Only change the start if the instruction starts behind us
+            if (updatedInstruction.start > instruction.start)
+                updatedInstruction.start += textSizeDiff;
+            updatedInstruction.end += textSizeDiff;
             instructions[j] = updatedInstruction;
         }
     }
@@ -315,7 +316,7 @@ function getVariableValue(variablePath: string, context: ParseContext): any {
     for (const part of pathParts) {
         if (value && typeof value === 'object' && part in value) {
             value = value[part];
-            logger.debug(`Found part in value`);
+            logger.debug(`Found part ${part} in value`);
             logger.debug(`Value: ${JSON.stringify(value, null, 2).substring(0, 50)}`);
         } else if (!(part in value)) {
             logger.debug(`Could not find part ${part} in value ${JSON.stringify(value, null, 2).substring(0, 50)}`);
