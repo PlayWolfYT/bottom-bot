@@ -49,8 +49,8 @@ export const GMT_TO_TIMEZONE = {
 };
 
 
-export function getTimezone(input: string): string | false {
-    if (input.length === 0) return "UTC";
+export function getTimezone(input: string | undefined): string | false {
+    if (!input || input.length === 0) return "UTC";
 
     if (TIMEZONES.includes(input)) return input;
     if (GMT_TO_TIMEZONE[input as keyof typeof GMT_TO_TIMEZONE]) return GMT_TO_TIMEZONE[input as keyof typeof GMT_TO_TIMEZONE];

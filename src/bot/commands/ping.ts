@@ -1,7 +1,7 @@
 import type { Command } from "@commands/Command";
 import { Client, Message, CommandInteraction } from "discord.js";
 
-const pingCommand: Command = {
+export default {
   name: "ping",
   description: "Replies with Pong!",
   executeMessage: async (
@@ -20,7 +20,7 @@ const pingCommand: Command = {
       ],
     });
   },
-};
+} satisfies Command;
 
 function generatePingEmbed(creationTimestamp: number, client: Client) {
   const ping = Date.now() - creationTimestamp;
@@ -31,5 +31,3 @@ function generatePingEmbed(creationTimestamp: number, client: Client) {
     color: ping < 100 ? 0x00ff00 : ping < 200 ? 0xffff00 : 0xff0000,
   };
 }
-
-export default pingCommand;

@@ -23,7 +23,7 @@ const commandFiles = readdirSync("./src/bot/commands", {
 );
 
 for (const file of commandFiles) {
-  const command: Command | any = require(`./bot/commands/${file}`).default;
+  const command: Command | any = require(`./commands/${file}`).default;
 
   if (!isCommand(command)) {
     logger.error(`Command ${file} is not a valid command.`);

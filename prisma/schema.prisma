@@ -51,10 +51,21 @@ model UserSettings {
 }
 
 model GuildSettings {
-  id       String  @id @default(cuid())
-  guildId  String
-  timezone String?
-  prefix   String? @db.VarChar(255)
+  id         String  @id @default(cuid())
+  guildId    String
+  timezone   String?
+  prefix     String? @db.VarChar(255)
+  jailRoleId String?
 
   @@unique([guildId])
+}
+
+model JailedUser {
+  id      String  @id @default(cuid())
+  guildId String
+  userId  String
+  reason  String? @db.Text
+  roles   Json
+
+  @@unique([guildId, userId])
 }

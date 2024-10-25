@@ -15,4 +15,4 @@ export default {
         fs.writeFileSync(triggerFile, "");
         await interaction.reply({ content: "Bot update has been queued. Goodbye! :wave:", ephemeral: true });
     }
-} as Command;
+} satisfies Command;

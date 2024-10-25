@@ -15,7 +15,7 @@ async function generateHelpReply(
   guildId: string,
   userId: string,
   replyFunction: ReplyFunction,
-  guildSettings: GuildSettings
+  guildSettings: GuildSettings | undefined
 ): Promise<void> {
   const pagedEmbed = new PagedEmbed<{ name: string; id: string }>(
     async (page, itemsPerPage) => {
@@ -29,13 +29,13 @@ async function generateHelpReply(
       return { items: customCommands, totalPages: Math.ceil(totalPages / itemsPerPage) };
     },
     (displayedCommands: { name: string; id: string }[], currentPage: number, totalPages: number) => {
-      let description = `Custom commands are commands that you can add to the bot.\n${displayedCommands.length} commands found.\nTo get more info on a command, use the \`${guildSettings.prefix ?? env.BOT_PREFIX}custom info [name / uuid]\` command.`;
+      let description = `Custom commands are commands that you can add to the bot.\n${displayedCommands.length} commands found.\nTo get more info on a command, use the \`${guildSettings?.prefix ?? env.BOT_PREFIX}custom info [name / uuid]\` command.`;
       const embed = new EmbedBuilder()
         .setTitle("Custom Commands")
         .setColor("#f542dd")
         .setFooter({ text: `Page ${currentPage} • ${totalPages} pages available` });
 
-      description += displayedCommands.map(command => `\n${guildSettings.prefix ?? env.BOT_PREFIX}${command.name} • (ID: ${command.id})`).join('');
+      description += displayedCommands.map(command => `\n${guildSettings?.prefix ?? env.BOT_PREFIX}${command.name} • (ID: ${command.id})`).join('');
 
       embed.setDescription(description);
 
@@ -71,7 +71,7 @@ export default {
         break;
       case "add":
         if (!interaction.options.getString("name") || !interaction.options.getString("response")) {
-          interaction.reply({ content: `Usage: ${guildSettings.prefix ?? env.BOT_PREFIX}custom add [name] [response]` });
+          interaction.reply({ content: `Usage: ${guildSettings?.prefix ?? env.BOT_PREFIX}custom add [name] [response]` });
           return;
         }
         args = [interaction.options.getString("name")!, interaction.options.getString("response")!];
@@ -142,16 +142,16 @@ export default {
           option.setName("response").setDescription("The response of the custom command").setRequired(true)
         )
     ),
-} as Command;
+} satisfies Command;
 
-async function handleCommand(subcommand: string, args: string[], guildId: string, userId: string, replyFunction: ReplyFunction, guildSettings: GuildSettings) {
+async function handleCommand(subcommand: string, args: string[], guildId: string, userId: string, replyFunction: ReplyFunction, guildSettings: GuildSettings | undefined) {
   switch (subcommand) {
     case "list":
       await generateHelpReply(guildId, userId, replyFunction, guildSettings);
       break;
     case "add": {
       if (args.length < 2) {
-        await replyFunction({ content: `Usage: ${guildSettings.prefix ?? env.BOT_PREFIX}custom add [name] [response]` });
+        await replyFunction({ content: `Usage: ${guildSettings?.prefix ?? env.BOT_PREFIX}custom add [name] [response]` });
         return;
       }
       const name = args[0];
@@ -177,7 +177,7 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
     }
     case "remove": {
       if (args.length < 1) {
-        await replyFunction({ content: `Usage: ${guildSettings.prefix ?? env.BOT_PREFIX}custom remove [name / uuid]` });
+        await replyFunction({ content: `Usage: ${guildSettings?.prefix ?? env.BOT_PREFIX}custom remove [name / uuid]` });
         return;
       }
       const identifier = args[0];
@@ -193,7 +193,7 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
     }
     case "edit": {
       if (args.length < 2) {
-        await replyFunction({ content: `Usage: ${guildSettings.prefix ?? env.BOT_PREFIX}custom edit [name / uuid] [new response]` });
+        await replyFunction({ content: `Usage: ${guildSettings?.prefix ?? env.BOT_PREFIX}custom edit [name / uuid] [new response]` });
         return;
       }
       const editIdentifier = args[0];
@@ -209,7 +209,7 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
     }
     case "info": {
       if (args.length < 1) {
-        await replyFunction({ content: `Usage: ${guildSettings.prefix ?? env.BOT_PREFIX}custom info [name / uuid]` });
+        await replyFunction({ content: `Usage: ${guildSettings?.prefix ?? env.BOT_PREFIX}custom info [name / uuid]` });
         return;
       }
       const identifier = args[0];
@@ -227,13 +227,13 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
             .setTitle("Custom Command Info")
             .setDescription(`**Name:** ${customCommand.name}\n**ID:** ${customCommand.id}\n**Response:**\n${customCommand.response.replaceAll("https://", "htt" + INVISIBLE_CHARACTER + "ps://")}`)
             .setColor("#0000ff")
-            .setFooter({ text: `Use ${guildSettings.prefix ?? env.BOT_PREFIX}custom edit [name / uuid] [new response] to edit this command.` })
+            .setFooter({ text: `Use ${guildSettings?.prefix ?? env.BOT_PREFIX}custom edit [name / uuid] [new response] to edit this command.` })
         ]
       });
       break;
     }
     default:
-      await replyFunction({ content: `Invalid subcommand. Use ${guildSettings.prefix ?? env.BOT_PREFIX}custom (list|add|remove|edit|info)` });
+      await replyFunction({ content: `Invalid subcommand. Use ${guildSettings?.prefix ?? env.BOT_PREFIX}custom (list|add|remove|edit|info)` });
       break;
   }
 }

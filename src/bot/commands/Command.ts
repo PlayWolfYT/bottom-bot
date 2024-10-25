@@ -5,6 +5,7 @@ import {
   SlashCommandBuilder,
   ChatInputCommandInteraction,
   type SlashCommandSubcommandsOnlyBuilder,
+  AutocompleteInteraction,
 } from "discord.js";
 
 export interface Command {
@@ -14,14 +15,19 @@ export interface Command {
     client: Client,
     message: Message,
     args: string[],
-    guildSettings: GuildSettings
+    guildSettings: GuildSettings | undefined
   ) => Promise<void>;
   executeSlash?: (
     client: Client,
     interaction: ChatInputCommandInteraction,
-    guildSettings: GuildSettings
+    guildSettings: GuildSettings | undefined
   ) => Promise<void>;
   slashCommandData?: SlashCommandBuilder | SlashCommandSubcommandsOnlyBuilder;
+  autoComplete?: (
+    client: Client,
+    interaction: AutocompleteInteraction,
+    guildSettings: GuildSettings | undefined
+  ) => Promise<void>;
 }
 
 export function isCommand(command: Command | any): command is Command {

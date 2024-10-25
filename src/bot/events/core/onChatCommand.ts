@@ -1,4 +1,4 @@
-import { Client, Events, Message } from "discord.js";
+import { Client, EmbedBuilder, Events, Message } from "discord.js";
 import type { Event } from "@events/Event";
 import { env } from "bun";
 import Logger from "@utils/logger";
@@ -46,7 +46,23 @@ export default {
       logger.debug(`Chat-based command executed successfully.`);
     } catch (error) {
       logger.error(`Error executing chat-based command: ${error}`);
-      message.reply("There was an error executing that command.");
+      try {
+        await message.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setTitle("Error executing command")
+              .setDescription("```\n" + error + "\n```")
+              .setColor("#ff0000")
+              .setFooter({
+                text: `Requested by ${message.author.username}`,
+                iconURL: message.author.avatarURL() || undefined,
+              })
+              .setTimestamp(new Date()),
+          ],
+        });
+      } catch (err) {
+        message.reply("There was an error executing that command.");
+      }
     }
   },
 } as Event;

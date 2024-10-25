@@ -1,4 +1,7 @@
-import { type InteractionReplyOptions, type MessageCreateOptions } from "discord.js";
+import { Collection, type InteractionReplyOptions, type MessageCreateOptions } from "discord.js";
+import type { Command } from "./bot/commands/Command";
+import type { Event } from "./bot/events/Event";
+import type { Interval } from "./bot/intervals/Interval";
 
 export type ReplyFunction = (options: MessageCreateOptions | InteractionReplyOptions) => Promise<Message!>;
 
