@@ -155,6 +155,17 @@ The new count is {counter}
 Note: The body is `\{userId: {user.id} \}`. This will be parsed by JSON (which also means you can use " to pass a simple string as the body). 
 The `{user.id}` *inside* the body will be replaced by the parser, since it is not escaped.
 
+##### Stickers
+
+Send stickers
+
+Syntax: `{sticker;stickerNameOrId}`
+
+Example:
+```
+{sticker;lick}
+``` 
+
 ##### All together
 
 Here is an example, which shows all of those features working together.

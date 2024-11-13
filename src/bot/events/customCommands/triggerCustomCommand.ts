@@ -3,7 +3,7 @@ import type { Event } from "@events/Event";
 import Sandbox from "@nyariv/sandboxjs";
 import Logger from "@utils/logger";
 import { env } from "bun";
-import { ChannelType, EmbedBuilder, Events, Message, PermissionsBitField, TextChannel } from "discord.js";
+import { ChannelType, EmbedBuilder, Events, Message, PermissionsBitField, Sticker, TextChannel, type MessageCreateOptions } from "discord.js";
 
 interface ParseContext {
     message: Message & { channel: TextChannel };
@@ -130,7 +130,7 @@ export default {
         try {
             const parsedResponse = await parseResponse(response, context);
 
-            if (parsedResponse !== null && parsedResponse.length > 0) {
+            if (parsedResponse !== null && parsedResponse.content && parsedResponse.content.length > 0) {
                 await message.channel.send(parsedResponse);
 
                 // Send follow-up messages if any
@@ -161,7 +161,7 @@ export default {
     },
 } as Event;
 
-async function parseResponse(text: string, context: ParseContext): Promise<string> {
+async function parseResponse(text: string, context: ParseContext): Promise<MessageCreateOptions> {
     let response = text;
     let instructions: InstructionArray = [];
     let instructionStarts: number[] = [];
@@ -192,6 +192,7 @@ async function parseResponse(text: string, context: ParseContext): Promise<strin
         }
     }
 
+    let stickersToSend: Sticker[] = [];
     for (let i = 0; i < instructions.length; i++) {
         const instruction = instructions[i];
 
@@ -433,6 +434,15 @@ async function parseResponse(text: string, context: ParseContext): Promise<strin
                     context.variables[outputVariable] = data;
                     break;
                 }
+            case 'sticker': {
+                const stickerNameOrId = instructionValues[0];
+                const sticker = context.message.guild?.stickers.cache.find(sticker => sticker.name === stickerNameOrId || sticker.id === stickerNameOrId);
+                if (!sticker) {
+                    throw new Error(`Sticker with name or ID ${stickerNameOrId} not found`);
+                }
+                stickersToSend.push(sticker);
+                break;
+            }
             default: {
                 // Variable replacement
                 logger.debug(`Custom command triggered variable replacement for '${instructionType}'`);
@@ -468,7 +478,10 @@ async function parseResponse(text: string, context: ParseContext): Promise<strin
         }
     }
 
-    return response;
+    return {
+        content: response,
+        stickers: stickersToSend,
+    };
 }
 
 function getVariableValue(variablePath: string, context: ParseContext): any {
