@@ -9,12 +9,14 @@ export default {
   execute(client, message) {
     if (message.author.bot) return;
 
+    let matches = message.content
+      // Remove all markdown characters
+      .replace(/[*_~`|#]/g, "")
+      .match(/(?:\s|^)i'?m(?:\s(.*))|(?:\s|^)i am\s+(.*)/i);
+
     // Get everything after "I'm", "I am", or "Im" and before the first comma or space
     let name =
-      message.content
-        // Remove all markdown characters
-        .replace(/[*_~`|#]/g, "")
-        .match(/(?:\s|^)i'?m(?:\s(.*))|(?:\s|^)i am\s+(.*)/i)?.[1]
+      (matches?.[2] === undefined ? matches?.[1] : matches?.[3])
         ?.split(",")[0]
         ?.trim() || "";
 
