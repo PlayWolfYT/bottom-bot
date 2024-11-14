@@ -14,7 +14,7 @@ export default {
       message.content
         // Remove all markdown characters
         .replace(/[*_~`|#]/g, "")
-        .match(/(?:\s|^)i'?m(?:\s|$)|(?:\s|^)i am\s+(.*)/i)?.[1]
+        .match(/(?:\s|^)i'?m(?:\s(.*))|(?:\s|^)i am\s+(.*)/i)?.[1]
         ?.split(",")[0]
         ?.trim() || "";
 
