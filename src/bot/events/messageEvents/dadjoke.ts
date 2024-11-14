@@ -16,7 +16,7 @@ export default {
 
     // Get everything after "I'm", "I am", or "Im" and before the first comma or space
     let name =
-      (matches?.[2] === undefined ? matches?.[1] : matches?.[3])
+      (matches?.[2] === undefined ? matches?.[1] : matches?.[2])
         ?.split(",")[0]
         ?.trim() || "";
 
