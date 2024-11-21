@@ -4,12 +4,12 @@ import type { Command } from "./Command";
 export default {
     name: "echo",
     description: "Echo a message to the channel",
-    executeMessage: async (_client, message) => {
+    executeMessage: async (_client, message, args) => {
         // Delete the message, then echo the content to the channel
         if (message.author.bot) return;
         if (!message.channel.isSendable()) return;
 
-        const content = message.content.trim();
+        const content = args.join(" ");
         if (content === "") {
             return;
         }
