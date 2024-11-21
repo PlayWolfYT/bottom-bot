@@ -2,8 +2,8 @@ import { SlashCommandBuilder } from "discord.js";
 import type { Command } from "./Command";
 
 export default {
-    name: "update",
-    description: "Update the bot",
+    name: "echo",
+    description: "Echo a message to the channel",
     executeMessage: async (_client, message) => {
         // Delete the message, then echo the content to the channel
         if (message.author.bot) return;
