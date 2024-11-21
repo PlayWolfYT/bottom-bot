@@ -7,6 +7,7 @@ const logger = new Logger();
 export default {
   event: Events.MessageCreate,
   execute(client, message) {
+    return;
     if (message.author.bot) return;
 
     let matches = message.content
