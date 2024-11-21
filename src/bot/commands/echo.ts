@@ -1,5 +1,6 @@
 import { SlashCommandBuilder } from "discord.js";
 import type { Command } from "./Command";
+import { env } from "bun";
 
 export default {
     name: "echo",
@@ -8,6 +9,7 @@ export default {
         // Delete the message, then echo the content to the channel
         if (message.author.bot) return;
         if (!message.channel.isSendable()) return;
+        if (env.BOT_OWNER_ID && message.author.id !== env.BOT_OWNER_ID) return;
 
         const content = args.join(" ");
         if (content === "") {

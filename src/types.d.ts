@@ -10,6 +10,7 @@ declare module "bun" {
     interface Env {
         BOT_TOKEN?: string;
         BOT_PREFIX?: string;
+        BOT_OWNER_ID?: string;
         CLIENT_ID?: number;
     }
 }

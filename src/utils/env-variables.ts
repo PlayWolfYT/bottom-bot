@@ -12,4 +12,7 @@ export function validateEnvVariables() {
     logger.error("CLIENT_ID must be set in the environment variables.");
     process.exit(1);
   }
+  if (!env.BOT_OWNER_ID) {
+    logger.warn("BOT_OWNER_ID is not set in the environment variables. This is not recommended.");
+  }
 }
