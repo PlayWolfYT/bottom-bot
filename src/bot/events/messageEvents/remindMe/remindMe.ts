@@ -9,6 +9,7 @@ export default {
   event: Events.MessageCreate,
   async execute(_client, message) {
     if (message.author.bot) return;
+    if (message.mentions.users.first()?.id != _client.user.id) return;
 
     if (message.content.toLowerCase().includes("remind me")) {
       // Extract the content after "remind me"
