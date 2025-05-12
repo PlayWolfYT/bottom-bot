@@ -257,8 +257,8 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
         return;
       }
       const serverId = args[0];
-      const name = args[1];
-      const newName = args[2];
+      const name = args[1] ?? "";
+      const newName = args[2] ?? "";
 
       if (name.length > 0) {
         // Find the specific custom command to clone
