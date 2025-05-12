@@ -269,6 +269,8 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
         }
 
         if (newName.length > 0) {
+          console.log(`Checking if a custom command with the name **'${newName}'** already exists (GuildID: ${guildId})`);
+          console.log(`Length: ${newName.length}`);
           // Check if a custom command with the same name already exists
           const existingCommand = await prisma.customCommand.findFirst({ where: { name: newName, guildId } });
           if (existingCommand) {
