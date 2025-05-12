@@ -298,8 +298,10 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
         // Check if the current server already has a custom command with the same name
         const existingCommands = await prisma.customCommand.findMany({ where: { guildId, name: { in: customCommands.map((command) => command.name) } } });
 
+        const clonedCommands = customCommands.filter((command) => !existingCommands.some((existingCommand) => existingCommand.name === command.name));
+
         await prisma.customCommand.createMany({
-          data: customCommands.filter((command) => !existingCommands.some((existingCommand) => existingCommand.name === command.name)).map((command) => ({
+          data: clonedCommands.map((command) => ({
             guildId,
             name: command.name,
             response: command.response,
@@ -311,12 +313,12 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
           embeds: [
             new EmbedBuilder()
               .setTitle("Custom Commands Cloned")
-              .setDescription(`**${customCommands.length - existingCommands.length}** custom commands from server **'${serverId}'** have been cloned to the current server. (${existingCommands.length} skipped due to name conflicts)`)
+              .setDescription(`**${clonedCommands.length}** custom commands from server **'${serverId}'** have been cloned to the current server. (${existingCommands.length} skipped due to name conflicts)`)
               .setColor("#00ff00")
               .addFields(
                 {
                   name: "Cloned Commands",
-                  value: customCommands.filter((command) => !existingCommands.some((existingCommand) => existingCommand.name === command.name)).map((command) => `**${command.name}**`).join(", "),
+                  value: clonedCommands.map((command) => `**${command.name}**`).join(", "),
                 },
                 {
                   name: "Skipped Commands",
