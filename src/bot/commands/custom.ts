@@ -102,10 +102,10 @@ export default {
         break;
       case "clone":
         if (!interaction.options.getString("server")) {
-          interaction.reply({ content: `Usage: ${interaction.commandName} clone [server id]` });
+          interaction.reply({ content: `Usage: ${interaction.commandName} clone [server id] (name) (new name)` });
           return;
         }
-        args = [interaction.options.getString("server")!, interaction.options.getString("name") ?? ""];
+        args = [interaction.options.getString("server")!, interaction.options.getString("name") ?? "", interaction.options.getString("new-name") ?? ""];
         break;
     }
 
@@ -156,6 +156,9 @@ export default {
         )
         .addStringOption((option) =>
           option.setName("name").setDescription("The specific custom command to clone").setRequired(false)
+        )
+        .addStringOption((option) =>
+          option.setName("new-name").setDescription("The new name of the custom command (Used to avoid conflicts)").setRequired(false)
         )
     ),
 } satisfies Command;
@@ -255,6 +258,7 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
       }
       const serverId = args[0];
       const name = args[1];
+      const newName = args[2];
 
       if (name.length > 0) {
         // Find the specific custom command to clone
@@ -264,11 +268,20 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
           return;
         }
 
+        if (newName.length > 0) {
+          // Check if a custom command with the same name already exists
+          const existingCommand = await prisma.customCommand.findFirst({ where: { name: newName, guildId } });
+          if (existingCommand) {
+            await replyFunction({ content: `A custom command with the name **'${newName}'** already exists (ID: ${existingCommand.id}). Please use a different name.` });
+            return;
+          }
+        }
+
         // Clone the custom command to the current server
         const newCommand = await prisma.customCommand.create({
           data: {
             guildId,
-            name: customCommand.name,
+            name: newName.length > 0 ? newName : customCommand.name,
             response: customCommand.response,
           },
         });
@@ -284,20 +297,41 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
           return;
         }
 
+        // Check if the current server already has a custom command with the same name
+        const existingCommands = await prisma.customCommand.findMany({ where: { guildId, name: { in: customCommands.map((command) => command.name) } } });
+
         await prisma.customCommand.createMany({
-          data: customCommands.map((command) => ({
+          data: customCommands.filter((command) => !existingCommands.some((existingCommand) => existingCommand.name === command.name)).map((command) => ({
             guildId,
             name: command.name,
             response: command.response,
           })),
         });
 
-        await replyFunction({ content: "", embeds: [new EmbedBuilder().setTitle("Custom Commands Cloned").setDescription(`All (${customCommands.length}) custom commands from server **'${serverId}'** have been cloned to the current server.`).setColor("#00ff00")] });
+        await replyFunction({
+          content: "",
+          embeds: [
+            new EmbedBuilder()
+              .setTitle("Custom Commands Cloned")
+              .setDescription(`**${customCommands.length - existingCommands.length}** custom commands from server **'${serverId}'** have been cloned to the current server. (${existingCommands.length} skipped due to name conflicts)`)
+              .setColor("#00ff00")
+              .addFields(
+                {
+                  name: "Cloned Commands",
+                  value: customCommands.filter((command) => !existingCommands.some((existingCommand) => existingCommand.name === command.name)).map((command) => `**${command.name}**`).join(", "),
+                },
+                {
+                  name: "Skipped Commands",
+                  value: existingCommands.map((command) => `**${command.name}**`).join(", "),
+                }
+              )
+          ]
+        });
         break;
       }
     }
     default:
-      await replyFunction({ content: `Invalid subcommand. Use ${guildSettings?.prefix ?? env.BOT_PREFIX}custom (list|add|remove|edit|info)` });
+      await replyFunction({ content: `Invalid subcommand. Use ${guildSettings?.prefix ?? env.BOT_PREFIX}custom (list|add|remove|edit|info|clone)` });
       break;
   }
 }
