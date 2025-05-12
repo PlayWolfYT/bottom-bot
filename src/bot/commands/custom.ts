@@ -253,7 +253,7 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
     }
     case "clone": {
       if (args.length < 1) {
-        await replyFunction({ content: `Usage: ${guildSettings?.prefix ?? env.BOT_PREFIX}custom clone [server id] [name]` });
+        await replyFunction({ content: `Usage: ${guildSettings?.prefix ?? env.BOT_PREFIX}custom clone [server id] (name) (new name)` });
         return;
       }
       const serverId = args[0];
