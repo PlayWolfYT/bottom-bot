@@ -268,15 +268,11 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
           return;
         }
 
-        if (newName.length > 0) {
-          console.log(`Checking if a custom command with the name **'${newName}'** already exists (GuildID: ${guildId})`);
-          console.log(`Length: ${newName.length}`);
-          // Check if a custom command with the same name already exists
-          const existingCommand = await prisma.customCommand.findFirst({ where: { name: newName, guildId } });
-          if (existingCommand) {
-            await replyFunction({ content: `A custom command with the name **'${newName}'** already exists (ID: ${existingCommand.id}). Please use a different name.` });
-            return;
-          }
+        // Check if a custom command with the same name already exists
+        const existingCommand = await prisma.customCommand.findFirst({ where: { name: newName.length > 0 ? newName : customCommand.name, guildId } });
+        if (existingCommand) {
+          await replyFunction({ content: `A custom command with the name **'${newName.length > 0 ? newName : customCommand.name}'** already exists in your server (ID: ${existingCommand.id}). Please use a different name.` });
+          return;
         }
 
         // Clone the custom command to the current server
