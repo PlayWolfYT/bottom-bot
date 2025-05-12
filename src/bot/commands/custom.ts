@@ -100,6 +100,13 @@ export default {
         }
         args = [interaction.options.getString("name")!, interaction.options.getString("response")!];
         break;
+      case "clone":
+        if (!interaction.options.getString("server")) {
+          interaction.reply({ content: `Usage: ${interaction.commandName} clone [server id]` });
+          return;
+        }
+        args = [interaction.options.getString("server")!, interaction.options.getString("name") ?? ""];
+        break;
     }
 
     try {
@@ -140,6 +147,15 @@ export default {
         )
         .addStringOption((option) =>
           option.setName("response").setDescription("The response of the custom command").setRequired(true)
+        )
+    )
+    .addSubcommand((subcommand) =>
+      subcommand.setName("clone").setDescription("Clone a custom command from another server")
+        .addStringOption((option) =>
+          option.setName("server").setDescription("The server id of the server to clone the custom command(s) from").setRequired(true)
+        )
+        .addStringOption((option) =>
+          option.setName("name").setDescription("The specific custom command to clone").setRequired(false)
         )
     ),
 } satisfies Command;
@@ -231,6 +247,54 @@ async function handleCommand(subcommand: string, args: string[], guildId: string
         ]
       });
       break;
+    }
+    case "clone": {
+      if (args.length < 1) {
+        await replyFunction({ content: `Usage: ${guildSettings?.prefix ?? env.BOT_PREFIX}custom clone [server id] [name]` });
+        return;
+      }
+      const serverId = args[0];
+      const name = args[1];
+
+      if (name.length > 0) {
+        // Find the specific custom command to clone
+        const customCommand = await prisma.customCommand.findFirst({ where: { name, guildId: serverId } });
+        if (!customCommand) {
+          await replyFunction({ content: `Couldnt find a command with name **'${name}'**` });
+          return;
+        }
+
+        // Clone the custom command to the current server
+        const newCommand = await prisma.customCommand.create({
+          data: {
+            guildId,
+            name: customCommand.name,
+            response: customCommand.response,
+          },
+        });
+
+        await replyFunction({ content: "", embeds: [new EmbedBuilder().setTitle("Custom Command Cloned").setDescription(`Command **'${customCommand.name}'** with response **'${customCommand.response}'** has been cloned to the current server. (ID: ${newCommand.id})`).setColor("#00ff00")] });
+        break;
+      } else {
+        // Clone all custom commands from one server to another
+        const customCommands = await prisma.customCommand.findMany({ where: { guildId: serverId } });
+
+        if (customCommands.length === 0) {
+          await replyFunction({ content: `No custom commands found on server **'${serverId}'**, or the server id is invalid.` });
+          return;
+        }
+
+        await prisma.customCommand.createMany({
+          data: customCommands.map((command) => ({
+            guildId,
+            name: command.name,
+            response: command.response,
+          })),
+        });
+
+        await replyFunction({ content: "", embeds: [new EmbedBuilder().setTitle("Custom Commands Cloned").setDescription(`All (${customCommands.length}) custom commands from server **'${serverId}'** have been cloned to the current server.`).setColor("#00ff00")] });
+        break;
+      }
     }
     default:
       await replyFunction({ content: `Invalid subcommand. Use ${guildSettings?.prefix ?? env.BOT_PREFIX}custom (list|add|remove|edit|info)` });
